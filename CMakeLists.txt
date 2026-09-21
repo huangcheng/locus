@@ -29,6 +29,8 @@ set(LOCUS_CORE_SOURCES
 if(APPLE)
   enable_language(OBJCXX)
   list(APPEND LOCUS_CORE_SOURCES src/platform/MacActivation.mm src/platform/MacIcon.mm src/platform/MacLoginItem.mm src/platform/MacOverlay.mm)
+else()
+  list(APPEND LOCUS_CORE_SOURCES src/platform/MacStubs.cpp)
 endif()
 
 add_library(locus_core STATIC ${LOCUS_CORE_SOURCES})

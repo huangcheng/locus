@@ -9,6 +9,7 @@
 
 #include <QAbstractItemView>
 #include <QButtonGroup>
+#include <QDir>
 #include <QEasingCurve>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -23,6 +24,7 @@
 #include <QShowEvent>
 #include <QSlider>
 #include <QStackedWidget>
+#include <QTimer>
 #include <QToolButton>
 #include <QUuid>
 #include <QVariantAnimation>
@@ -400,20 +402,26 @@ public:
       : QFrame(parent) {
     setObjectName(QStringLiteral("pinRow"));
     setAttribute(Qt::WA_StyledBackground, true);
+    // The row covers the whole item, so it must let mouse events fall through
+    // to the viewport or InternalMove drag-reordering never starts. The remove
+    // button stays interactive.
+    setAttribute(Qt::WA_TransparentForMouseEvents, true);
     auto *lay = new QHBoxLayout(this);
     lay->setContentsMargins(8, 0, 8, 0);
     lay->setSpacing(10);
-    lay->addWidget(new DragHandle(this));
+    auto *handle = new DragHandle(this);
+    handle->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    lay->addWidget(handle);
 
     auto *iconLabel = new QLabel(this);
-    QPixmap pm = icon.pixmap(QSize(56, 56));
-    pm.setDevicePixelRatio(2);
-    iconLabel->setPixmap(pm);
     iconLabel->setFixedSize(28, 28);
+    iconLabel->setPixmap(icon.pixmap(QSize(28, 28), devicePixelRatioF()));
+    iconLabel->setAttribute(Qt::WA_TransparentForMouseEvents, true);
     lay->addWidget(iconLabel);
 
     auto *name = new QLabel(pin.label, this);
     name->setObjectName(QStringLiteral("pinName"));
+    name->setAttribute(Qt::WA_TransparentForMouseEvents, true);
     lay->addWidget(name);
     lay->addStretch();
 
@@ -546,8 +554,9 @@ void PrefsWindow::applyPalette() {
                                  border-radius: 7px; background: white; }
     QListWidget { background: transparent; border: none; outline: none; }
     QListWidget::item { border: none; padding: 0; }
+    QListWidget::item:selected { background: transparent; }
     QFrame#pinRow { border-radius: 8px; }
-    QFrame#pinRow:hover { background: %4; }
+    QListWidget::item:hover { background: %4; border-radius: 8px; }
     QToolButton#removeBtn { color: %7; background: %4; border: none;
                             border-radius: 6px; font-size: 13px;
                             padding-bottom: 2px; }
@@ -736,7 +745,7 @@ QWidget *PrefsWindow::buildPinsPane() {
   cardLay->setSpacing(0);
   pinList_ = new QListWidget(card);
   pinList_->setFrameShape(QFrame::NoFrame);
-  pinList_->setSelectionMode(QAbstractItemView::NoSelection);
+  pinList_->setSelectionMode(QAbstractItemView::SingleSelection);
   pinList_->setDragDropMode(QAbstractItemView::InternalMove);
   pinList_->setDefaultDropAction(Qt::MoveAction);
   pinList_->setSpacing(2);
@@ -920,17 +929,28 @@ void PrefsWindow::commitPinOrder() {
       }
     }
   }
-  if (reordered.size() != pins_->pins().size())
-    return; // drag glitch — leave the store untouched
-  pins_->setPins(reordered);
-  reloadPinRows();
-  emit pinsChanged();
+  if (reordered.size() == pins_->pins().size()) {
+    pins_->setPins(reordered);
+    emit pinsChanged();
+  }
+  // Rebuilding synchronously would clear the list inside the model's
+  // rowsMoved notification — defer it.
+  QTimer::singleShot(0, this, [this] { reloadPinRows(); });
 }
 
 void PrefsWindow::addApp() {
-  const QString path = QFileDialog::getOpenFileName(
-      this, QStringLiteral("Add App"), QStringLiteral("/Applications"),
-      QStringLiteral("Applications (*.app)"));
+#if defined(Q_OS_MAC)
+  const QString startDir = QStringLiteral("/Applications");
+  const QString filter = QStringLiteral("Applications (*.app)");
+#elif defined(Q_OS_WIN)
+  const QString startDir = QStringLiteral("C:/Program Files");
+  const QString filter = QStringLiteral("Programs (*.exe)");
+#else
+  const QString startDir = QDir::homePath();
+  const QString filter = QStringLiteral("All files (*)");
+#endif
+  const QString path =
+      QFileDialog::getOpenFileName(this, QStringLiteral("Add App"), startDir, filter);
   if (path.isEmpty())
     return;
   Pin pin;
