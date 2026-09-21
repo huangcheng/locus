@@ -3,7 +3,7 @@
 #include <QPolygonF>
 #include <QRectF>
 
-namespace navi {
+namespace locus {
 
 /// Pointy-top hexagon inscribed in rect (vertices at top/bottom midpoints
 /// and at ±25%/75% height on the left/right edges).
@@ -17,4 +17,4 @@ inline QPolygonF hexagonForRect(const QRectF &r) {
                    QPointF(r.left(), r.top() + r.height() * 0.25)};
 }
 
-} // namespace navi
+} // namespace locus

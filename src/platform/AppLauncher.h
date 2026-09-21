@@ -2,11 +2,11 @@
 
 #include <QString>
 
-namespace navi {
+namespace locus {
 
 class AppLauncher {
 public:
   bool launch(const QString &appPath) const;
 };
 
-} // namespace navi
+} // namespace locus

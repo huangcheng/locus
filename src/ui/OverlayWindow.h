@@ -2,7 +2,7 @@
 
 #include <QWidget>
 
-namespace navi {
+namespace locus {
 
 class OverlayWindow : public QWidget {
   Q_OBJECT
@@ -17,4 +17,4 @@ private:
   QWidget *content_ = nullptr;
 };
 
-} // namespace navi
+} // namespace locus

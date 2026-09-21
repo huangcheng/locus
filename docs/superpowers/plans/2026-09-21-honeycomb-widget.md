@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make the approved honeycomb design the default Navi launcher widget: floating pointy-top hexagonal cells (no window chrome), amber focused cell, selection pill — replacing Orbital as the default style while keeping Orbital available via the existing `style` pref.
+**Goal:** Make the approved honeycomb design the default Locus launcher widget: floating pointy-top hexagonal cells (no window chrome), amber focused cell, selection pill — replacing Orbital as the default style while keeping Orbital available via the existing `style` pref.
 
-**Architecture:** The codebase already has the seam (`docs/superpowers/specs/2026-09-20-navi-architecture-design.md`): `LayoutStrategy::build(pins, focusedId, density) -> SceneModel` and `MenuView::setScene`. We add `CellularLayoutStrategy` (layout math + cell chrome as `Decoration`s) and `CellularGlassView` (QPainter rendering + input), extend `SceneModel`/`HitTest` with polygon shapes (hex rows overlap by 15px vertically, so rect-only hit-testing misfires in overlap bands), and wire a style switch in `main.cpp`.
+**Architecture:** The codebase already has the seam (`docs/superpowers/specs/2026-09-20-locus-architecture-design.md`): `LayoutStrategy::build(pins, focusedId, density) -> SceneModel` and `MenuView::setScene`. We add `CellularLayoutStrategy` (layout math + cell chrome as `Decoration`s) and `CellularGlassView` (QPainter rendering + input), extend `SceneModel`/`HitTest` with polygon shapes (hex rows overlap by 15px vertically, so rect-only hit-testing misfires in overlap bands), and wire a style switch in `main.cpp`.
 
 **Design source of truth:** Ardot file 727830845408975 frames "01b — Honeycomb · Dark" / "01c — Honeycomb · Light" / "02 — Empty Widget", and `mockups/launcher-directions.html` section C.
 
@@ -45,13 +45,13 @@ Hex rows interlock, so bounding boxes overlap. A point can sit inside a higher-z
 
 namespace {
 
-navi::PlacedItem hexItem(const QString &id, const QRectF &rect, int z) {
-  navi::PlacedItem it;
+locus::PlacedItem hexItem(const QString &id, const QRectF &rect, int z) {
+  locus::PlacedItem it;
   it.id = id;
   it.bounds = rect;
   it.z = z;
-  it.role = navi::ItemRole::Item;
-  it.shape = navi::hexagonForRect(rect);
+  it.role = locus::ItemRole::Item;
+  it.shape = locus::hexagonForRect(rect);
   return it;
 }
 
@@ -64,26 +64,26 @@ private slots:
     // Two interlocked pointy-top hex cells: "a" is row0 col0 (lower z),
     // "b" is row1 col1 (higher z, tested first). (120,112) lies inside
     // b's bounding rect but outside b's hexagon — inside a's hexagon only.
-    navi::SceneModel scene;
+    locus::SceneModel scene;
     scene.items = {hexItem(QStringLiteral("a"), QRectF(72, 28, 80, 92), 0),
                    hexItem(QStringLiteral("b"), QRectF(116, 105, 80, 92), 10)};
     scene.hitOrder = {QStringLiteral("b"), QStringLiteral("a")};
-    QCOMPARE(navi::hitTest(scene, QPointF(120, 112)), QStringLiteral("a"));
-    QCOMPARE(navi::hitTest(scene, QPointF(156, 151)), QStringLiteral("b"));
-    QCOMPARE(navi::hitTest(scene, QPointF(10, 10)), QString());
+    QCOMPARE(locus::hitTest(scene, QPointF(120, 112)), QStringLiteral("a"));
+    QCOMPARE(locus::hitTest(scene, QPointF(156, 151)), QStringLiteral("b"));
+    QCOMPARE(locus::hitTest(scene, QPointF(10, 10)), QString());
   }
 
   void rectFallbackWithoutShape() {
-    navi::PlacedItem it;
+    locus::PlacedItem it;
     it.id = QStringLiteral("r");
     it.bounds = QRectF(0, 0, 50, 50);
     it.z = 0;
-    it.role = navi::ItemRole::Item;
-    navi::SceneModel scene;
+    it.role = locus::ItemRole::Item;
+    locus::SceneModel scene;
     scene.items = {it};
     scene.hitOrder = {QStringLiteral("r")};
-    QCOMPARE(navi::hitTest(scene, QPointF(25, 25)), QStringLiteral("r"));
-    QCOMPARE(navi::hitTest(scene, QPointF(60, 60)), QString());
+    QCOMPARE(locus::hitTest(scene, QPointF(25, 25)), QStringLiteral("r"));
+    QCOMPARE(locus::hitTest(scene, QPointF(60, 60)), QString());
   }
 };
 
@@ -91,10 +91,10 @@ QTEST_MAIN(HexHitTest)
 #include "test_hexhittest.moc"
 ```
 
-Register in `CMakeLists.txt` after the existing `navi_add_test(...)` lines (line 65 area):
+Register in `CMakeLists.txt` after the existing `locus_add_test(...)` lines (line 65 area):
 
 ```cmake
-navi_add_test(test_hexhittest tests/test_hexhittest.cpp)
+locus_add_test(test_hexhittest tests/test_hexhittest.cpp)
 ```
 
 - [ ] **Step 2: Run to verify it fails**
@@ -115,7 +115,7 @@ Create `src/core/Hexagon.h`:
 #include <QPolygonF>
 #include <QRectF>
 
-namespace navi {
+namespace locus {
 
 /// Pointy-top hexagon inscribed in rect (vertices at top/bottom midpoints
 /// and at ±25%/75% height on the left/right edges).
@@ -129,7 +129,7 @@ inline QPolygonF hexagonForRect(const QRectF &r) {
                    QPointF(r.left(), r.top() + r.height() * 0.25)};
 }
 
-} // namespace navi
+} // namespace locus
 ```
 
 Modify `src/core/SceneModel.h` — add the include, the `shape` field on `PlacedItem`, and `focusedId` on `HubInfo`:
@@ -144,7 +144,7 @@ Modify `src/core/SceneModel.h` — add the include, the `shape` field on `Placed
 
 #include <optional>
 
-namespace navi {
+namespace locus {
 
 enum class ItemRole { Item, Hub, Decoration };
 
@@ -169,7 +169,7 @@ struct Decoration {
 
 struct HubInfo {
   QString selectedTitle;
-  QString brandSubtitle = QStringLiteral("NAVI");
+  QString brandSubtitle = QStringLiteral("LOCUS");
   QString focusedId;
 };
 
@@ -180,7 +180,7 @@ struct SceneModel {
   QVector<QString> hitOrder;
 };
 
-} // namespace navi
+} // namespace locus
 ```
 
 Replace the body of `hitTest` in `src/core/HitTest.h`:
@@ -193,7 +193,7 @@ Replace the body of `hitTest` in `src/core/HitTest.h`:
 #include <QPointF>
 #include <QString>
 
-namespace navi {
+namespace locus {
 
 /// First Item in hitOrder whose shape (or bounds) contains point; else empty.
 inline QString hitTest(const SceneModel &scene, QPointF p) {
@@ -212,7 +212,7 @@ inline QString hitTest(const SceneModel &scene, QPointF p) {
   return {};
 }
 
-} // namespace navi
+} // namespace locus
 ```
 
 - [ ] **Step 4: Run tests to verify they pass**
@@ -244,11 +244,11 @@ Turns N pins into interlocked honeycomb rows: one `PlacedItem` (with hexagon `sh
 
 namespace {
 
-QVector<navi::Pin> makePins(int n) {
-  QVector<navi::Pin> pins;
+QVector<locus::Pin> makePins(int n) {
+  QVector<locus::Pin> pins;
   pins.reserve(n);
   for (int i = 0; i < n; ++i) {
-    navi::Pin p;
+    locus::Pin p;
     p.id = QStringLiteral("p%1").arg(i);
     p.label = QStringLiteral("App %1").arg(i);
     p.appPath = QStringLiteral("/tmp/app%1.app").arg(i);
@@ -257,7 +257,7 @@ QVector<navi::Pin> makePins(int n) {
   return pins;
 }
 
-int countStyle(const navi::SceneModel &scene, const char *key) {
+int countStyle(const locus::SceneModel &scene, const char *key) {
   int n = 0;
   for (const auto &dec : scene.decorations)
     if (dec.styleKey == QLatin1String(key))
@@ -271,8 +271,8 @@ class CellularTest : public QObject {
   Q_OBJECT
 private slots:
   void eightPinsThreeRows() {
-    navi::CellularLayoutStrategy s;
-    navi::DensityPrefs d;
+    locus::CellularLayoutStrategy s;
+    locus::DensityPrefs d;
     auto pins = makePins(8);
     auto scene = s.build(pins, pins[4].id, d);
     QCOMPARE(int(scene.items.size()), 8);
@@ -285,8 +285,8 @@ private slots:
   }
 
   void rowsInterlock() {
-    navi::CellularLayoutStrategy s;
-    navi::DensityPrefs d;
+    locus::CellularLayoutStrategy s;
+    locus::DensityPrefs d;
     auto pins = makePins(8);
     auto scene = s.build(pins, {}, d);
     // row0 (3 cells) starts 44px right of row1 (4 cells); pitch 88 / 77
@@ -298,8 +298,8 @@ private slots:
   }
 
   void twentyPinsTileOnward() {
-    navi::CellularLayoutStrategy s;
-    navi::DensityPrefs d;
+    locus::CellularLayoutStrategy s;
+    locus::DensityPrefs d;
     auto pins = makePins(20);
     auto scene = s.build(pins, {}, d);
     QCOMPARE(int(scene.items.size()), 20);
@@ -310,13 +310,13 @@ private slots:
   }
 
   void zeroPinsShowEmptySlots() {
-    navi::CellularLayoutStrategy s;
-    navi::DensityPrefs d;
+    locus::CellularLayoutStrategy s;
+    locus::DensityPrefs d;
     auto scene = s.build({}, {}, d);
     QCOMPARE(int(scene.items.size()), 0);
     QCOMPARE(int(scene.decorations.size()), 3);
     QCOMPARE(countStyle(scene, "cell.empty"), 3);
-    QCOMPARE(navi::hitTest(scene, QPointF(100, 60)), QString());
+    QCOMPARE(locus::hitTest(scene, QPointF(100, 60)), QString());
   }
 };
 
@@ -324,12 +324,12 @@ QTEST_MAIN(CellularTest)
 #include "test_cellular_layout.moc"
 ```
 
-Note: `zeroPinsShowEmptySlots` uses `navi::hitTest` — add `#include "core/HitTest.h"` at the top of the test file.
+Note: `zeroPinsShowEmptySlots` uses `locus::hitTest` — add `#include "core/HitTest.h"` at the top of the test file.
 
 Register in `CMakeLists.txt`:
 
 ```cmake
-navi_add_test(test_cellular_layout tests/test_cellular_layout.cpp)
+locus_add_test(test_cellular_layout tests/test_cellular_layout.cpp)
 ```
 
 - [ ] **Step 2: Run to verify it fails**
@@ -349,7 +349,7 @@ Create `src/layout/CellularLayoutStrategy.h`:
 
 #include "core/LayoutStrategy.h"
 
-namespace navi {
+namespace locus {
 
 /// Honeycomb widget: pins fill interlocked pointy-top hex rows (3,4,3,4…),
 /// trailing slots in the last row render as dashed empty cells.
@@ -359,7 +359,7 @@ public:
                    const DensityPrefs &density) override;
 };
 
-} // namespace navi
+} // namespace locus
 ```
 
 Create `src/layout/CellularLayoutStrategy.cpp`:
@@ -371,7 +371,7 @@ Create `src/layout/CellularLayoutStrategy.cpp`:
 
 #include <algorithm>
 
-namespace navi {
+namespace locus {
 namespace {
 
 constexpr qreal kCellW = 80.0;
@@ -446,7 +446,7 @@ SceneModel CellularLayoutStrategy::build(const QVector<Pin> &pins,
       break;
     }
   }
-  scene.hub.brandSubtitle = QStringLiteral("NAVI");
+  scene.hub.brandSubtitle = QStringLiteral("LOCUS");
   scene.hub.focusedId = focusedId;
 
   QVector<PlacedItem> ordered = scene.items;
@@ -460,10 +460,10 @@ SceneModel CellularLayoutStrategy::build(const QVector<Pin> &pins,
   return scene;
 }
 
-} // namespace navi
+} // namespace locus
 ```
 
-Add `src/layout/CellularLayoutStrategy.cpp` to `NAVI_CORE_SOURCES` in `CMakeLists.txt`, right after the orbital line:
+Add `src/layout/CellularLayoutStrategy.cpp` to `LOCUS_CORE_SOURCES` in `CMakeLists.txt`, right after the orbital line:
 
 ```cmake
   src/layout/OrbitalLayoutStrategy.cpp
@@ -507,7 +507,7 @@ Create `src/ui/CellularGlassView.h`:
 
 class QPainter;
 
-namespace navi {
+namespace locus {
 
 class CellularGlassView : public QWidget, public MenuView {
   Q_OBJECT
@@ -543,7 +543,7 @@ private:
   QString lastHover_;
 };
 
-} // namespace navi
+} // namespace locus
 ```
 
 Create `src/ui/CellularGlassView.cpp`:
@@ -561,7 +561,7 @@ Create `src/ui/CellularGlassView.cpp`:
 
 #include <cmath>
 
-namespace navi {
+namespace locus {
 namespace {
 
 constexpr qreal kMargin = 28.0;
@@ -706,7 +706,7 @@ void CellularGlassView::paintPill(QPainter &p, bool dark) {
   p.setFont(title);
   p.drawText(QRectF(textRect.left(), textRect.top() + 7, textRect.width(), 16),
              Qt::AlignLeft | Qt::AlignVCenter,
-             hasFocus ? scene_.hub.selectedTitle : QStringLiteral("Navi"));
+             hasFocus ? scene_.hub.selectedTitle : QStringLiteral("Locus"));
 
   p.setPen(dark ? QColor(138, 133, 120) : QColor(120, 114, 100));
   QFont sub = font();
@@ -753,10 +753,10 @@ void CellularGlassView::leaveEvent(QEvent *) {
   }
 }
 
-} // namespace navi
+} // namespace locus
 ```
 
-Add to `NAVI_CORE_SOURCES` in `CMakeLists.txt`, after the orbital view line:
+Add to `LOCUS_CORE_SOURCES` in `CMakeLists.txt`, after the orbital view line:
 
 ```cmake
   src/ui/OrbitalGlassView.cpp
@@ -846,7 +846,7 @@ void OverlayWindow::resizeToContent() {
 
 namespace {
 
-QVector<navi::Pin> seedMacApps() {
+QVector<locus::Pin> seedMacApps() {
   const QStringList candidates = {
       QStringLiteral("/Applications/Safari.app"),
       QStringLiteral("/System/Applications/Utilities/Terminal.app"),
@@ -861,11 +861,11 @@ QVector<navi::Pin> seedMacApps() {
       QStringLiteral("/Applications/Notion.app"),
       QStringLiteral("/Applications/Discord.app"),
   };
-  QVector<navi::Pin> pins;
+  QVector<locus::Pin> pins;
   for (const QString &path : candidates) {
     if (!QFileInfo::exists(path))
       continue;
-    navi::Pin pin;
+    locus::Pin pin;
     pin.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
     pin.appPath = path;
     pin.label = QFileInfo(path).completeBaseName();
@@ -881,52 +881,52 @@ QVector<navi::Pin> seedMacApps() {
 
 int main(int argc, char *argv[]) {
   QApplication app(argc, argv);
-  QCoreApplication::setOrganizationName(QStringLiteral("Navi"));
-  QCoreApplication::setApplicationName(QStringLiteral("Navi"));
+  QCoreApplication::setOrganizationName(QStringLiteral("Locus"));
+  QCoreApplication::setApplicationName(QStringLiteral("Locus"));
   app.setQuitOnLastWindowClosed(false);
-  navi::macActivateApplication();
+  locus::macActivateApplication();
 
   QSettings settings;
-  navi::Prefs prefs(&settings);
+  locus::Prefs prefs(&settings);
   prefs.load();
-  navi::PinStore pinStore(&settings);
+  locus::PinStore pinStore(&settings);
   pinStore.load();
   if (pinStore.pins().isEmpty())
     pinStore.setPins(seedMacApps());
 
-  navi::SessionController session;
-  navi::IconProvider icons;
-  navi::AppLauncher launcher;
+  locus::SessionController session;
+  locus::IconProvider icons;
+  locus::AppLauncher launcher;
 
-  const bool cellular = prefs.styleId() == navi::StyleId::Cellular;
-  const navi::Appearance appearance = prefs.appearance() == navi::Appearance::Light
-                                          ? navi::Appearance::Light
-                                          : navi::Appearance::Dark;
+  const bool cellular = prefs.styleId() == locus::StyleId::Cellular;
+  const locus::Appearance appearance = prefs.appearance() == locus::Appearance::Light
+                                          ? locus::Appearance::Light
+                                          : locus::Appearance::Dark;
 
-  navi::CellularLayoutStrategy cellularStrategy;
-  navi::OrbitalLayoutStrategy orbitalStrategy;
-  navi::LayoutStrategy *strategy =
-      cellular ? static_cast<navi::LayoutStrategy *>(&cellularStrategy)
-               : static_cast<navi::LayoutStrategy *>(&orbitalStrategy);
+  locus::CellularLayoutStrategy cellularStrategy;
+  locus::OrbitalLayoutStrategy orbitalStrategy;
+  locus::LayoutStrategy *strategy =
+      cellular ? static_cast<locus::LayoutStrategy *>(&cellularStrategy)
+               : static_cast<locus::LayoutStrategy *>(&orbitalStrategy);
 
-  navi::CellularGlassView *cellularView = nullptr;
-  navi::OrbitalGlassView *orbitalView = nullptr;
-  navi::MenuView *view = nullptr;
+  locus::CellularGlassView *cellularView = nullptr;
+  locus::OrbitalGlassView *orbitalView = nullptr;
+  locus::MenuView *view = nullptr;
   if (cellular) {
-    cellularView = new navi::CellularGlassView;
+    cellularView = new locus::CellularGlassView;
     cellularView->setAppearance(appearance);
     for (const auto &pin : pinStore.pins())
       cellularView->setIcon(pin.id, icons.iconForPath(pin.appPath));
     view = cellularView;
   } else {
-    orbitalView = new navi::OrbitalGlassView;
+    orbitalView = new locus::OrbitalGlassView;
     orbitalView->setAppearance(appearance);
     for (const auto &pin : pinStore.pins())
       orbitalView->setIcon(pin.id, icons.iconForPath(pin.appPath));
     view = orbitalView;
   }
 
-  navi::OverlayWindow overlay(view->widget());
+  locus::OverlayWindow overlay(view->widget());
 
   auto rebuild = [&] {
     const auto scene =
@@ -947,7 +947,7 @@ int main(int argc, char *argv[]) {
       anchor = screen->availableGeometry().center();
     }
     overlay.showAt(anchor);
-    navi::macActivateApplication();
+    locus::macActivateApplication();
   };
 
   auto hideMenu = [&] {
@@ -982,7 +982,7 @@ int main(int argc, char *argv[]) {
     wireView(orbitalView);
 
   if (orbitalView) {
-    QObject::connect(orbitalView, &navi::OrbitalGlassView::rotationDelta, &app,
+    QObject::connect(orbitalView, &locus::OrbitalGlassView::rotationDelta, &app,
                      [&](qreal delta) {
                        orbitalStrategy.setRotationRadians(
                            orbitalStrategy.rotationRadians() + delta);
@@ -990,11 +990,11 @@ int main(int argc, char *argv[]) {
                      });
   }
 
-  navi::TrayController tray;
-  QObject::connect(&tray, &navi::TrayController::showRequested, &app, showMenu);
-  QObject::connect(&tray, &navi::TrayController::quitRequested, &app,
+  locus::TrayController tray;
+  QObject::connect(&tray, &locus::TrayController::showRequested, &app, showMenu);
+  QObject::connect(&tray, &locus::TrayController::quitRequested, &app,
                    &QApplication::quit);
-  QObject::connect(&tray, &navi::TrayController::prefsRequested, &app, [] {
+  QObject::connect(&tray, &locus::TrayController::prefsRequested, &app, [] {
     // PrefsDialog arrives in a later task.
   });
 
@@ -1026,18 +1026,18 @@ Expected: 7/7 pass (test_smoke, test_session, test_orbital_layout, test_scene_hi
 - [ ] **Step 2: Run the app and eyeball the widget**
 
 ```bash
-open build2/Navi.app
+open build2/Locus.app
 ```
 
 Verify against the Ardot frames: hex cells in 3/4/3 rows, no window chrome, amber focused cell with glow, icons centered, pill below showing the focused app, Esc dismisses, clicking a cell launches the app, clicking empty space dismisses. Move the mouse across row boundaries — hover must land on the visually-correct cell (polygon hit test). Then quit and re-run with orbital to confirm the switch still works:
 
 ```bash
-defaults write Navi.Navi style -int 0 && open build2/Navi.app
+defaults write Locus.Locus style -int 0 && open build2/Locus.app
 # verify orbital wheel renders, quit, then restore:
-defaults delete Navi.Navi style
+defaults delete Locus.Locus style
 ```
 
-(The QSettings domain is `<OrganizationName>.<ApplicationName>` = `Navi.Navi`; if `defaults` errors, check `~/Library/Preferences` for the actual plist name.)
+(The QSettings domain is `<OrganizationName>.<ApplicationName>` = `Locus.Locus`; if `defaults` errors, check `~/Library/Preferences` for the actual plist name.)
 
 - [ ] **Step 3: README** — two edits in `README.md`:
 

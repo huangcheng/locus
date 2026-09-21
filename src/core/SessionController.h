@@ -5,7 +5,7 @@
 #include <QObject>
 #include <QString>
 
-namespace navi {
+namespace locus {
 
 class SessionController : public QObject {
   Q_OBJECT
@@ -38,4 +38,4 @@ private:
   StyleId styleId_ = StyleId::Orbital;
 };
 
-} // namespace navi
+} // namespace locus

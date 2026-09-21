@@ -1,6 +1,6 @@
 #include "core/SessionController.h"
 
-namespace navi {
+namespace locus {
 
 SessionController::SessionController(QObject *parent) : QObject(parent) {}
 
@@ -40,4 +40,4 @@ QString SessionController::activate() {
   return id;
 }
 
-} // namespace navi
+} // namespace locus

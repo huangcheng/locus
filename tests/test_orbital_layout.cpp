@@ -7,11 +7,11 @@
 
 namespace {
 
-QVector<navi::Pin> makePins(int n) {
-  QVector<navi::Pin> pins;
+QVector<locus::Pin> makePins(int n) {
+  QVector<locus::Pin> pins;
   pins.reserve(n);
   for (int i = 0; i < n; ++i) {
-    navi::Pin p;
+    locus::Pin p;
     p.id = QStringLiteral("p%1").arg(i);
     p.label = QStringLiteral("App %1").arg(i);
     p.appPath = QStringLiteral("/tmp/app%1.app").arg(i);
@@ -26,13 +26,13 @@ class OrbitalTest : public QObject {
   Q_OBJECT
 private slots:
   void eightPinsOneRing() {
-    navi::OrbitalLayoutStrategy s;
-    navi::DensityPrefs d;
+    locus::OrbitalLayoutStrategy s;
+    locus::DensityPrefs d;
     auto pins = makePins(8);
     auto scene = s.build(pins, pins[0].id, d);
     int items = 0;
     for (const auto &it : scene.items)
-      if (it.role == navi::ItemRole::Item)
+      if (it.role == locus::ItemRole::Item)
         ++items;
     QCOMPARE(items, 8);
     QVERIFY(std::any_of(
@@ -51,13 +51,13 @@ private slots:
   }
 
   void twentyPinsTwoRings() {
-    navi::OrbitalLayoutStrategy s;
-    navi::DensityPrefs d;
+    locus::OrbitalLayoutStrategy s;
+    locus::DensityPrefs d;
     auto pins = makePins(20);
     auto scene = s.build(pins, {}, d);
     int items = 0;
     for (const auto &it : scene.items)
-      if (it.role == navi::ItemRole::Item)
+      if (it.role == locus::ItemRole::Item)
         ++items;
     QCOMPARE(items, 20);
     QVERIFY(std::any_of(
@@ -67,9 +67,9 @@ private slots:
   }
 
   void rotationChangesPositions() {
-    navi::OrbitalLayoutStrategy s;
+    locus::OrbitalLayoutStrategy s;
     auto pins = makePins(8);
-    navi::DensityPrefs d;
+    locus::DensityPrefs d;
     auto a = s.build(pins, {}, d);
     s.setRotationRadians(M_PI / 4);
     auto b = s.build(pins, {}, d);

@@ -11,6 +11,7 @@
 #include "ui/CellularGlassView.h"
 #include "ui/OrbitalGlassView.h"
 #include "ui/OverlayWindow.h"
+#include "ui/PrefsWindow.h"
 
 #include <QApplication>
 #include <QCursor>
@@ -28,7 +29,7 @@
 
 namespace {
 
-QVector<navi::Pin> seedMacApps() {
+QVector<locus::Pin> seedMacApps() {
   const QStringList candidates = {
       QStringLiteral("/Applications/Safari.app"),
       QStringLiteral("/System/Applications/Utilities/Terminal.app"),
@@ -43,11 +44,11 @@ QVector<navi::Pin> seedMacApps() {
       QStringLiteral("/Applications/Notion.app"),
       QStringLiteral("/Applications/Discord.app"),
   };
-  QVector<navi::Pin> pins;
+  QVector<locus::Pin> pins;
   for (const QString &path : candidates) {
     if (!QFileInfo::exists(path))
       continue;
-    navi::Pin pin;
+    locus::Pin pin;
     pin.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
     pin.appPath = path;
     pin.label = QFileInfo(path).completeBaseName();
@@ -63,82 +64,80 @@ QVector<navi::Pin> seedMacApps() {
 
 int main(int argc, char *argv[]) {
   QApplication app(argc, argv);
-  QCoreApplication::setOrganizationName(QStringLiteral("Navi"));
-  QCoreApplication::setApplicationName(QStringLiteral("Navi"));
+  QCoreApplication::setOrganizationName(QStringLiteral("Locus"));
+  QCoreApplication::setApplicationName(QStringLiteral("Locus"));
   app.setQuitOnLastWindowClosed(false);
 
   // Single instance: a second launch pings the running instance (which then
-  // shows the widget) and exits immediately.
-  const QString instanceServer = QStringLiteral("app.navi.launcher.single");
+  // shows the widget) and exits immediately. `--prefs` opens Settings instead.
+  const QString instanceServer = QStringLiteral("app.locus.launcher.single");
+  const bool wantsPrefs =
+      QStringList::fromVector(app.arguments()).contains(QLatin1String("--prefs"));
   {
     QLocalSocket probe;
     probe.connectToServer(instanceServer, QIODevice::WriteOnly);
     if (probe.waitForConnected(200)) {
-      probe.write("show");
+      probe.write(wantsPrefs ? "prefs" : "show");
       probe.flush();
       probe.waitForBytesWritten(200);
       return 0;
     }
   }
 
-  navi::macActivateApplication();
+  locus::macActivateApplication();
 
   QSettings settings;
-  navi::Prefs prefs(&settings);
+  locus::Prefs prefs(&settings);
   prefs.load();
-  navi::PinStore pinStore(&settings);
+  locus::PinStore pinStore(&settings);
   pinStore.load();
   if (pinStore.pins().isEmpty())
     pinStore.setPins(seedMacApps());
 
-  navi::SessionController session;
-  navi::IconProvider icons;
-  navi::AppLauncher launcher;
-
-  const bool cellular = prefs.styleId() == navi::StyleId::Cellular;
+  locus::SessionController session;
+  locus::IconProvider icons;
+  locus::AppLauncher launcher;
 
   // Resolve System against the real OS palette so dark glass never floats
   // over a light desktop (and vice versa).
   auto resolveAppearance = [&] {
-    if (prefs.appearance() == navi::Appearance::System)
+    if (prefs.appearance() == locus::Appearance::System)
       return QGuiApplication::styleHints()->colorScheme() ==
                      Qt::ColorScheme::Dark
-                 ? navi::Appearance::Dark
-                 : navi::Appearance::Light;
+                 ? locus::Appearance::Dark
+                 : locus::Appearance::Light;
     return prefs.appearance();
   };
 
-  navi::CellularLayoutStrategy cellularStrategy;
-  navi::OrbitalLayoutStrategy orbitalStrategy;
-  navi::LayoutStrategy *strategy =
-      cellular ? static_cast<navi::LayoutStrategy *>(&cellularStrategy)
-               : static_cast<navi::LayoutStrategy *>(&orbitalStrategy);
+  locus::CellularLayoutStrategy cellularStrategy;
+  locus::OrbitalLayoutStrategy orbitalStrategy;
 
-  navi::CellularGlassView *cellularView = nullptr;
-  navi::OrbitalGlassView *orbitalView = nullptr;
-  navi::MenuView *view = nullptr;
-  if (cellular) {
-    cellularView = new navi::CellularGlassView;
-    cellularView->setAppearance(resolveAppearance());
-    for (const auto &pin : pinStore.pins())
-      cellularView->setIcon(pin.id, icons.iconForPath(pin.appPath));
-    view = cellularView;
-  } else {
-    orbitalView = new navi::OrbitalGlassView;
-    orbitalView->setAppearance(resolveAppearance());
-    for (const auto &pin : pinStore.pins())
-      orbitalView->setIcon(pin.id, icons.iconForPath(pin.appPath));
-    view = orbitalView;
-  }
+  locus::CellularGlassView *cellularView = nullptr;
+  locus::OrbitalGlassView *orbitalView = nullptr;
+  locus::MenuView *view = nullptr;
 
-  navi::OverlayWindow overlay(view->widget());
-  navi::macMakeOverlayLiveWhenInactive(&overlay, view->widget());
+  // Placeholder content; applyStyle() swaps in the real view below.
+  locus::OverlayWindow overlay(new QWidget);
 
   auto rebuild = [&] {
+    locus::LayoutStrategy *strategy =
+        prefs.styleId() == locus::StyleId::Cellular
+            ? static_cast<locus::LayoutStrategy *>(&cellularStrategy)
+            : static_cast<locus::LayoutStrategy *>(&orbitalStrategy);
     const auto scene =
         strategy->build(pinStore.pins(), session.focusedId(), prefs.density());
     view->setScene(scene);
     overlay.resizeToContent();
+  };
+
+  auto applyIcons = [&] {
+    for (const auto &pin : pinStore.pins()) {
+      const QIcon icon = icons.iconForPath(pin.appPath);
+      if (cellularView)
+        cellularView->setIcon(pin.id, icon);
+      if (orbitalView)
+        orbitalView->setIcon(pin.id, icon);
+    }
   };
 
   auto showMenu = [&] {
@@ -155,7 +154,7 @@ int main(int argc, char *argv[]) {
             ? QGuiApplication::primaryScreen()->availableGeometry().center()
             : QCursor::pos();
     overlay.showAt(anchor);
-    navi::macActivateApplication();
+    locus::macActivateApplication();
   };
 
   auto hideMenu = [&] {
@@ -191,19 +190,43 @@ int main(int argc, char *argv[]) {
     });
     QObject::connect(v, &V::dismissRequested, &app, hideMenu);
   };
-  if (cellularView)
-    wireView(cellularView);
-  else
-    wireView(orbitalView);
+  auto createView = [&] {
+    locus::CellularGlassView *cv = nullptr;
+    locus::OrbitalGlassView *ov = nullptr;
+    if (prefs.styleId() == locus::StyleId::Cellular) {
+      cv = new locus::CellularGlassView;
+      cv->setAppearance(resolveAppearance());
+      cv->setIconSize(prefs.density().iconSize);
+      cellularView = cv;
+      orbitalView = nullptr;
+      view = cv;
+      wireView(cv);
+    } else {
+      ov = new locus::OrbitalGlassView;
+      ov->setAppearance(resolveAppearance());
+      cellularView = nullptr;
+      orbitalView = ov;
+      view = ov;
+      wireView(ov);
+      QObject::connect(ov, &locus::OrbitalGlassView::rotationDelta, &app,
+                       [&](qreal delta) {
+                         orbitalStrategy.setRotationRadians(
+                             orbitalStrategy.rotationRadians() + delta);
+                         rebuild();
+                       });
+    }
+    applyIcons();
+  };
 
-  if (orbitalView) {
-    QObject::connect(orbitalView, &navi::OrbitalGlassView::rotationDelta, &app,
-                     [&](qreal delta) {
-                       orbitalStrategy.setRotationRadians(
-                           orbitalStrategy.rotationRadians() + delta);
-                       rebuild();
-                     });
-  }
+  // (Re)create the launcher view — at startup and when the menu style
+  // changes in Settings.
+  auto applyStyle = [&] {
+    createView();
+    overlay.setContent(view->widget());
+    locus::macMakeOverlayLiveWhenInactive(&overlay, view->widget());
+    rebuild();
+  };
+  applyStyle();
 
   // Launcher semantics: focusing another app dismisses the widget.
   QObject::connect(&app, &QApplication::applicationStateChanged, &app,
@@ -212,20 +235,46 @@ int main(int argc, char *argv[]) {
                        hideMenu();
                    });
 
-  navi::TrayController tray;
+  locus::TrayController tray;
+  locus::PrefsWindow prefsWindow(&prefs, &pinStore, &icons);
+  prefsWindow.setResolvedAppearance(resolveAppearance());
+
+  auto applyAppearance = [&] {
+    const locus::Appearance resolved = resolveAppearance();
+    if (cellularView)
+      cellularView->setAppearance(resolved);
+    if (orbitalView)
+      orbitalView->setAppearance(resolved);
+    prefsWindow.setResolvedAppearance(resolved);
+  };
   QObject::connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged,
-                   &app, [&] {
-                     if (cellularView)
-                       cellularView->setAppearance(resolveAppearance());
-                     if (orbitalView)
-                       orbitalView->setAppearance(resolveAppearance());
-                   });
-  QObject::connect(&tray, &navi::TrayController::showRequested, &app, showMenu);
-  QObject::connect(&tray, &navi::TrayController::quitRequested, &app,
-                   &QApplication::quit);
-  QObject::connect(&tray, &navi::TrayController::prefsRequested, &app, [] {
-    // PrefsDialog arrives in a later task.
+                   &app, applyAppearance);
+  QObject::connect(&prefsWindow, &locus::PrefsWindow::appearanceChanged, &app,
+                   applyAppearance);
+  QObject::connect(&prefsWindow, &locus::PrefsWindow::styleChanged, &app,
+                   applyStyle);
+  QObject::connect(&prefsWindow, &locus::PrefsWindow::densityChanged, &app, [&] {
+    if (cellularView)
+      cellularView->setIconSize(prefs.density().iconSize);
+    rebuild();
   });
+  QObject::connect(&prefsWindow, &locus::PrefsWindow::pinsChanged, &app, [&] {
+    applyIcons();
+    rebuild();
+  });
+  QObject::connect(&tray, &locus::TrayController::showRequested, &app, showMenu);
+  QObject::connect(&tray, &locus::TrayController::quitRequested, &app,
+                   &QApplication::quit);
+  auto showPrefs = [&] {
+    if (session.isOpen())
+      hideMenu();
+    prefsWindow.refreshFromModel();
+    prefsWindow.show();
+    prefsWindow.raise();
+    locus::macActivateApplication();
+  };
+  QObject::connect(&tray, &locus::TrayController::prefsRequested, &app,
+                   showPrefs);
 
   QLocalServer singleInstanceGuard;
   QLocalServer::removeServer(instanceServer); // clear a stale socket after crashes
@@ -233,11 +282,20 @@ int main(int argc, char *argv[]) {
   QObject::connect(&singleInstanceGuard, &QLocalServer::newConnection, &app,
                    [&] {
                      while (QLocalSocket *sock =
-                                singleInstanceGuard.nextPendingConnection())
+                                singleInstanceGuard.nextPendingConnection()) {
+                       sock->waitForReadyRead(100);
+                       const QByteArray msg = sock->readAll().trimmed();
                        sock->deleteLater();
-                     showMenu(); // the ping itself is the signal
+                       if (msg == "prefs")
+                         showPrefs();
+                       else
+                         showMenu(); // the ping itself is the signal
+                     }
                    });
 
-  showMenu();
+  if (wantsPrefs)
+    showPrefs();
+  else
+    showMenu();
   return app.exec();
 }

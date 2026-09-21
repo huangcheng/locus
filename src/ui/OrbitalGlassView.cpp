@@ -8,7 +8,7 @@
 #include <QPainterPath>
 #include <QWheelEvent>
 
-namespace navi {
+namespace locus {
 
 OrbitalGlassView::OrbitalGlassView(QWidget *parent) : QWidget(parent) {
   setAttribute(Qt::WA_TranslucentBackground);
@@ -180,4 +180,4 @@ void OrbitalGlassView::leaveEvent(QEvent *) {
   }
 }
 
-} // namespace navi
+} // namespace locus

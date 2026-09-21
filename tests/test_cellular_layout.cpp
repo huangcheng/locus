@@ -6,11 +6,11 @@
 
 namespace {
 
-QVector<navi::Pin> makePins(int n) {
-  QVector<navi::Pin> pins;
+QVector<locus::Pin> makePins(int n) {
+  QVector<locus::Pin> pins;
   pins.reserve(n);
   for (int i = 0; i < n; ++i) {
-    navi::Pin p;
+    locus::Pin p;
     p.id = QStringLiteral("p%1").arg(i);
     p.label = QStringLiteral("App %1").arg(i);
     p.appPath = QStringLiteral("/tmp/app%1.app").arg(i);
@@ -19,7 +19,7 @@ QVector<navi::Pin> makePins(int n) {
   return pins;
 }
 
-int countStyle(const navi::SceneModel &scene, const char *key) {
+int countStyle(const locus::SceneModel &scene, const char *key) {
   int n = 0;
   for (const auto &dec : scene.decorations)
     if (dec.styleKey == QLatin1String(key))
@@ -33,8 +33,8 @@ class CellularTest : public QObject {
   Q_OBJECT
 private slots:
   void eightPinsThreeRows() {
-    navi::CellularLayoutStrategy s;
-    navi::DensityPrefs d;
+    locus::CellularLayoutStrategy s;
+    locus::DensityPrefs d;
     auto pins = makePins(8);
     auto scene = s.build(pins, pins[4].id, d);
     QCOMPARE(int(scene.items.size()), 8);
@@ -47,8 +47,8 @@ private slots:
   }
 
   void rowsInterlock() {
-    navi::CellularLayoutStrategy s;
-    navi::DensityPrefs d;
+    locus::CellularLayoutStrategy s;
+    locus::DensityPrefs d;
     auto pins = makePins(8);
     auto scene = s.build(pins, {}, d);
     // row0 (3 cells) starts 44px right of row1 (4 cells); pitch 88 / 77
@@ -60,8 +60,8 @@ private slots:
   }
 
   void twentyPinsTileOnward() {
-    navi::CellularLayoutStrategy s;
-    navi::DensityPrefs d;
+    locus::CellularLayoutStrategy s;
+    locus::DensityPrefs d;
     auto pins = makePins(20);
     auto scene = s.build(pins, {}, d);
     QCOMPARE(int(scene.items.size()), 20);
@@ -71,14 +71,29 @@ private slots:
     QCOMPARE(scene.items[19].bounds, QRectF(204, 413, 80, 92));
   }
 
+  void customDensityScalesGrid() {
+    locus::CellularLayoutStrategy s;
+    locus::DensityPrefs d;
+    d.cellSize = 64;
+    d.cellGap = 12;
+    auto pins = makePins(8);
+    auto scene = s.build(pins, {}, d);
+    // pitchX = 64+12 = 76, pitchY = 64*0.9625 = 61.6, cellH = 64*1.15 = 73.6
+    // gridW = 3*76 + 64 = 292; row0 (3 cells) rowW = 2*76+64 = 216
+    // row0 col0 x = 28 + (292-216)/2 = 66
+    QCOMPARE(scene.items[0].bounds, QRectF(66, 28, 64, 73.6));
+    // row1 col0: 4 cells, rowW = 3*76+64 = 292 = gridW → x = 28
+    QCOMPARE(scene.items[3].bounds, QRectF(28, 89.6, 64, 73.6));
+  }
+
   void zeroPinsShowEmptySlots() {
-    navi::CellularLayoutStrategy s;
-    navi::DensityPrefs d;
+    locus::CellularLayoutStrategy s;
+    locus::DensityPrefs d;
     auto scene = s.build({}, {}, d);
     QCOMPARE(int(scene.items.size()), 0);
     QCOMPARE(int(scene.decorations.size()), 3);
     QCOMPARE(countStyle(scene, "cell.empty"), 3);
-    QCOMPARE(navi::hitTest(scene, QPointF(100, 60)), QString());
+    QCOMPARE(locus::hitTest(scene, QPointF(100, 60)), QString());
   }
 };
 

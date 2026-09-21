@@ -13,8 +13,8 @@ private slots:
     QVERIFY(dir.isValid());
     QSettings settings(dir.filePath(QStringLiteral("prefs.ini")),
                        QSettings::IniFormat);
-    navi::PinStore store(&settings);
-    navi::Pin pin;
+    locus::PinStore store(&settings);
+    locus::Pin pin;
     pin.id = QStringLiteral("safari");
     pin.label = QStringLiteral("Safari");
     pin.appPath = QStringLiteral("/Applications/Safari.app");
@@ -23,7 +23,7 @@ private slots:
 
     QSettings reader(dir.filePath(QStringLiteral("prefs.ini")),
                      QSettings::IniFormat);
-    navi::PinStore loaded(&reader);
+    locus::PinStore loaded(&reader);
     loaded.load();
     QCOMPARE(loaded.pins().size(), 1);
     QCOMPARE(loaded.pins().at(0).label, QStringLiteral("Safari"));
@@ -34,19 +34,25 @@ private slots:
     QVERIFY(dir.isValid());
     QSettings settings(dir.filePath(QStringLiteral("prefs.ini")),
                        QSettings::IniFormat);
-    navi::Prefs prefs(&settings);
-    navi::DensityPrefs d;
+    locus::Prefs prefs(&settings);
+    locus::DensityPrefs d;
     d.minIconSize = 40;
     d.maxPerRing = 10;
+    d.cellSize = 96;
+    d.cellGap = 14;
+    d.iconSize = 48;
     prefs.setDensity(d);
     settings.sync();
 
     QSettings reader(dir.filePath(QStringLiteral("prefs.ini")),
                      QSettings::IniFormat);
-    navi::Prefs loaded(&reader);
+    locus::Prefs loaded(&reader);
     loaded.load();
     QCOMPARE(loaded.density().minIconSize, 40.0);
     QCOMPARE(loaded.density().maxPerRing, 10);
+    QCOMPARE(loaded.density().cellSize, 96.0);
+    QCOMPARE(loaded.density().cellGap, 14.0);
+    QCOMPARE(loaded.density().iconSize, 48.0);
   }
 };
 

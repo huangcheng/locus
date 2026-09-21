@@ -4,7 +4,7 @@
 
 #include <QString>
 
-namespace navi {
+namespace locus {
 
 struct Pin {
   PinId id;
@@ -13,4 +13,4 @@ struct Pin {
   QString iconKey;
 };
 
-} // namespace navi
+} // namespace locus

@@ -1,8 +1,10 @@
 #include "platform/MacActivation.h"
 
+#include <QWidget>
+
 #import <AppKit/AppKit.h>
 
-namespace navi {
+namespace locus {
 
 void macActivateApplication() {
   NSApplication *app = [NSApplication sharedApplication];
@@ -12,4 +14,18 @@ void macActivateApplication() {
   [app activateIgnoringOtherApps:YES];
 }
 
-} // namespace navi
+void macStyleSettingsWindow(QWidget *window) {
+  if (!window)
+    return;
+  window->winId(); // ensure the native NSWindow exists
+  NSView *view = (__bridge NSView *)(void *)window->effectiveWinId();
+  NSWindow *nsWindow = [view window];
+  if (!nsWindow)
+    return;
+  nsWindow.titlebarAppearsTransparent = YES;
+  nsWindow.titleVisibility = NSWindowTitleHidden;
+  nsWindow.styleMask |= NSWindowStyleMaskFullSizeContentView;
+  nsWindow.movableByWindowBackground = YES;
+}
+
+} // namespace locus

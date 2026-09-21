@@ -6,7 +6,7 @@
 #include <QKeySequence>
 #include <QSettings>
 
-namespace navi {
+namespace locus {
 
 class Prefs {
 public:
@@ -32,7 +32,8 @@ private:
   Appearance appearance_ = Appearance::System;
   StyleId styleId_ = StyleId::Cellular;
   DensityPrefs density_;
-  QKeySequence hotkey_ = QKeySequence(QStringLiteral("Ctrl+Space"));
+  // Meta on macOS = the real Control key (Qt::CTRL maps to Command there).
+  QKeySequence hotkey_ = QKeySequence(Qt::META | Qt::Key_Space);
 };
 
-} // namespace navi
+} // namespace locus

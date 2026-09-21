@@ -3,11 +3,11 @@
 #include <QIcon>
 #include <QString>
 
-namespace navi {
+namespace locus {
 
 class IconProvider {
 public:
   QIcon iconForPath(const QString &appPath) const;
 };
 
-} // namespace navi
+} // namespace locus

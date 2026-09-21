@@ -1,4 +1,4 @@
-# Navi v1 (Orbital) Implementation Plan
+# Locus v1 (Orbital) Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -8,11 +8,11 @@
 
 **Tech Stack:** C++20, Qt 6.11 (Widgets + Test), CMake 3.21+, Catch2 or Qt Test for unit tests, QSettings for persistence.
 
-**Spec:** `docs/superpowers/specs/2026-09-20-navi-architecture-design.md`
+**Spec:** `docs/superpowers/specs/2026-09-20-locus-architecture-design.md`
 
 ## Global Constraints
 
-- Product working title remains **Navi** until renamed; keep namespaces/`TARGET` as `navi`.
+- Product working title remains **Locus** until renamed; keep namespaces/`TARGET` as `locus`.
 - Qt Widgets only — no Electron, no Qt Quick.
 - Engine must not depend on a specific UI shape (orbital/cellular/pie).
 - Icons stay upright in widget space (`PlacedItem.bounds` axis-aligned).
@@ -68,29 +68,29 @@ tests/
 - Test: none yet (headers-only)
 
 **Interfaces:**
-- Produces: `navi::PinId` (`QString`), `navi::StyleId` enum `{ Orbital, Cellular, Pie }`, `navi::Appearance` `{ Dark, Light, System }`, `navi::Pin`, `navi::ItemRole`, `navi::PlacedItem`, `navi::Decoration`, `navi::HubInfo`, `navi::SceneModel`
+- Produces: `locus::PinId` (`QString`), `locus::StyleId` enum `{ Orbital, Cellular, Pie }`, `locus::Appearance` `{ Dark, Light, System }`, `locus::Pin`, `locus::ItemRole`, `locus::PlacedItem`, `locus::Decoration`, `locus::HubInfo`, `locus::SceneModel`
 
 - [ ] **Step 1: Create CMake project**
 
 ```cmake
 cmake_minimum_required(VERSION 3.21)
-project(navi VERSION 0.1.0 LANGUAGES CXX)
+project(locus VERSION 0.1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 find_package(Qt6 6.5 REQUIRED COMPONENTS Widgets Test)
-add_library(navi_core STATIC
+add_library(locus_core STATIC
   src/core/Pin.cpp
   # more sources added in later tasks
 )
-target_include_directories(navi_core PUBLIC src)
-target_link_libraries(navi_core PUBLIC Qt6::Widgets)
-add_executable(navi src/main.cpp)
-target_link_libraries(navi PRIVATE navi_core Qt6::Widgets)
+target_include_directories(locus_core PUBLIC src)
+target_link_libraries(locus_core PUBLIC Qt6::Widgets)
+add_executable(locus src/main.cpp)
+target_link_libraries(locus PRIVATE locus_core Qt6::Widgets)
 enable_testing()
-add_executable(navi_tests tests/test_session.cpp)
-target_link_libraries(navi_tests PRIVATE navi_core Qt6::Test)
-add_test(NAME navi_tests COMMAND navi_tests)
+add_executable(locus_tests tests/test_session.cpp)
+target_link_libraries(locus_tests PRIVATE locus_core Qt6::Test)
+add_test(NAME locus_tests COMMAND locus_tests)
 ```
 
 Start with `Pin.cpp` empty stub so the static lib links; expand sources per task.
@@ -100,7 +100,7 @@ Start with `Pin.cpp` empty stub so the static lib links; expand sources per task
 `SceneModel.h` (excerpt):
 
 ```cpp
-namespace navi {
+namespace locus {
 enum class ItemRole { Item, Hub, Decoration };
 enum class DecorationKind { Ellipse, Path };
 struct PlacedItem {
@@ -118,7 +118,7 @@ struct Decoration {
 };
 struct HubInfo {
   QString selectedTitle;
-  QString brandSubtitle = QStringLiteral("NAVI");
+  QString brandSubtitle = QStringLiteral("LOCUS");
 };
 struct SceneModel {
   QVector<PlacedItem> items;
@@ -135,8 +135,8 @@ struct SceneModel {
 #include <QApplication>
 int main(int argc, char *argv[]) {
   QApplication app(argc, argv);
-  QCoreApplication::setOrganizationName(QStringLiteral("Navi"));
-  QCoreApplication::setApplicationName(QStringLiteral("Navi"));
+  QCoreApplication::setOrganizationName(QStringLiteral("Locus"));
+  QCoreApplication::setApplicationName(QStringLiteral("Locus"));
   return 0; // Task 7+ will exec()
 }
 ```
@@ -154,7 +154,7 @@ Expected: success
 
 ```bash
 git add CMakeLists.txt README.md src .gitignore docs
-git commit -m "chore: scaffold Qt6 navi_core and SceneModel types"
+git commit -m "chore: scaffold Qt6 locus_core and SceneModel types"
 ```
 
 ---
@@ -163,7 +163,7 @@ git commit -m "chore: scaffold Qt6 navi_core and SceneModel types"
 
 **Files:**
 - Create: `src/core/SessionController.h`, `src/core/SessionController.cpp`, `tests/test_session.cpp`
-- Modify: `CMakeLists.txt` (add SessionController.cpp to `navi_core`)
+- Modify: `CMakeLists.txt` (add SessionController.cpp to `locus_core`)
 
 **Interfaces:**
 - Consumes: `Pin`, `SceneModel` types
@@ -196,15 +196,15 @@ git commit -m "chore: scaffold Qt6 navi_core and SceneModel types"
 
 ```cpp
 void SessionTest::openClose() {
-  navi::SessionController s;
-  QCOMPARE(s.state(), navi::SessionController::State::Closed);
+  locus::SessionController s;
+  QCOMPARE(s.state(), locus::SessionController::State::Closed);
   s.open();
-  QCOMPARE(s.state(), navi::SessionController::State::Open);
+  QCOMPARE(s.state(), locus::SessionController::State::Open);
   s.close();
-  QCOMPARE(s.state(), navi::SessionController::State::Closed);
+  QCOMPARE(s.state(), locus::SessionController::State::Closed);
 }
 void SessionTest::focusOnlyWhenOpen() {
-  navi::SessionController s;
+  locus::SessionController s;
   s.setFocus(QStringLiteral("a"));
   QVERIFY(s.focusedId().isEmpty());
   s.open();
@@ -212,13 +212,13 @@ void SessionTest::focusOnlyWhenOpen() {
   QCOMPARE(s.focusedId(), QStringLiteral("a"));
 }
 void SessionTest::activateEmitsAndCloses() {
-  navi::SessionController s;
-  QSignalSpy spy(&s, &navi::SessionController::activateRequested);
+  locus::SessionController s;
+  QSignalSpy spy(&s, &locus::SessionController::activateRequested);
   s.open();
   s.setFocus(QStringLiteral("code"));
   QCOMPARE(s.activate(), QStringLiteral("code"));
   QCOMPARE(spy.size(), 1);
-  QCOMPARE(s.state(), navi::SessionController::State::Closed);
+  QCOMPARE(s.state(), locus::SessionController::State::Closed);
 }
 ```
 
@@ -277,20 +277,20 @@ Packing rules (v1):
 - Overflow → outer ring radius `239`, icon size `minIconSize`.
 - Angles: evenly spaced from `-π/2` (top) + `rotationRadians`.
 - Decorations: `orbital.inner`, `orbital.outer` ellipses; if `focusedId` matches an item, add `hover.well` ellipse around that item’s bounds (inflated 12px).
-- Hub title = focused pin label, else empty; brand `NAVI`.
+- Hub title = focused pin label, else empty; brand `LOCUS`.
 - `hitOrder` = items sorted by descending `z` (hover well does not steal hits; only `Item` roles).
 
 - [ ] **Step 1: Failing test — 8 pins → one ring**
 
 ```cpp
 void OrbitalTest::eightPinsOneRing() {
-  navi::OrbitalLayoutStrategy s;
-  navi::DensityPrefs d;
+  locus::OrbitalLayoutStrategy s;
+  locus::DensityPrefs d;
   auto pins = makePins(8);
   auto scene = s.build(pins, pins[0].id, d);
   int items = 0;
   for (const auto &it : scene.items)
-    if (it.role == navi::ItemRole::Item) ++items;
+    if (it.role == locus::ItemRole::Item) ++items;
   QCOMPARE(items, 8);
   QVERIFY(std::any_of(scene.decorations.begin(), scene.decorations.end(),
     [](const auto &d){ return d.styleKey == QLatin1String("orbital.inner"); }));
@@ -301,9 +301,9 @@ void OrbitalTest::eightPinsOneRing() {
 
 ```cpp
 void OrbitalTest::rotationChangesPositions() {
-  navi::OrbitalLayoutStrategy s;
+  locus::OrbitalLayoutStrategy s;
   auto pins = makePins(8);
-  navi::DensityPrefs d;
+  locus::DensityPrefs d;
   auto a = s.build(pins, {}, d);
   s.setRotationRadians(M_PI / 4);
   auto b = s.build(pins, {}, d);
@@ -410,7 +410,7 @@ git commit -am "feat: add SceneModel hitTest helper"
 
 - [ ] **Step 1: Implement view paint + signals**
 - [ ] **Step 2: Implement overlay host**
-- [ ] **Step 3: Manual smoke — run `navi` briefly with fake pins (temporary in main)**
+- [ ] **Step 3: Manual smoke — run `locus` briefly with fake pins (temporary in main)**
 - [ ] **Step 4: Commit**
 
 ```bash

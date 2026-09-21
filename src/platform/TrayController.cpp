@@ -8,7 +8,7 @@
 #include <QPixmap>
 #include <QStyle>
 
-namespace navi {
+namespace locus {
 
 namespace {
 
@@ -31,7 +31,7 @@ QIcon trayIcon() {
 
 TrayController::TrayController(QObject *parent) : QObject(parent), tray_(this) {
   menu_ = new QMenu;
-  auto *showAction = menu_->addAction(tr("Show Navi"));
+  auto *showAction = menu_->addAction(tr("Show Locus"));
   auto *prefsAction = menu_->addAction(tr("Preferences…"));
   menu_->addSeparator();
   auto *quitAction = menu_->addAction(tr("Quit"));
@@ -48,11 +48,11 @@ TrayController::TrayController(QObject *parent) : QObject(parent), tray_(this) {
 
   tray_.setContextMenu(menu_);
   tray_.setIcon(trayIcon());
-  tray_.setToolTip(tr("Navi"));
+  tray_.setToolTip(tr("Locus"));
 
   if (!QSystemTrayIcon::isSystemTrayAvailable()) {
     QMessageBox::warning(
-        nullptr, tr("Navi"),
+        nullptr, tr("Locus"),
         tr("System tray is unavailable. Use the Dock icon or reopen the app."));
     return;
   }
@@ -63,4 +63,4 @@ TrayController::TrayController(QObject *parent) : QObject(parent), tray_(this) {
   tray_.show();
 }
 
-} // namespace navi
+} // namespace locus

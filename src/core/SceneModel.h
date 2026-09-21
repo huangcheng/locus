@@ -7,7 +7,7 @@
 
 #include <optional>
 
-namespace navi {
+namespace locus {
 
 enum class ItemRole { Item, Hub, Decoration };
 
@@ -32,7 +32,7 @@ struct Decoration {
 
 struct HubInfo {
   QString selectedTitle;
-  QString brandSubtitle = QStringLiteral("NAVI");
+  QString brandSubtitle = QStringLiteral("LOCUS");
   QString focusedId;
 };
 
@@ -43,4 +43,4 @@ struct SceneModel {
   QVector<QString> hitOrder;
 };
 
-} // namespace navi
+} // namespace locus

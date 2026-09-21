@@ -4,7 +4,7 @@
 
 #include <algorithm>
 
-namespace navi {
+namespace locus {
 namespace {
 
 QRectF iconBounds(QPointF center, qreal size) {
@@ -81,7 +81,7 @@ SceneModel OrbitalLayoutStrategy::build(const QVector<Pin> &pins,
     }
   }
   scene.hub.selectedTitle = focusedLabel;
-  scene.hub.brandSubtitle = QStringLiteral("NAVI");
+  scene.hub.brandSubtitle = QStringLiteral("LOCUS");
 
   if (!focusedId.isEmpty()) {
     for (const auto &item : scene.items) {
@@ -108,4 +108,4 @@ SceneModel OrbitalLayoutStrategy::build(const QVector<Pin> &pins,
   return scene;
 }
 
-} // namespace navi
+} // namespace locus

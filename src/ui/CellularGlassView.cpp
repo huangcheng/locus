@@ -12,11 +12,10 @@
 #include <algorithm>
 #include <cmath>
 
-namespace navi {
+namespace locus {
 namespace {
 
 constexpr qreal kMargin = 28.0;
-constexpr qreal kIconSize = 40.0;
 // Transparent padding around the grid so the focus glow and magnified
 // cells are never clipped by the window edge.
 constexpr qreal kPad = 40.0;
@@ -84,6 +83,13 @@ void CellularGlassView::setIcon(const QString &pinId, const QIcon &icon) {
   // Render at 4x so hover magnification downscales (crisp) instead of
   // upscaling a 40px raster (blurry).
   pixmaps_.insert(pinId, icon.pixmap(QSize(160, 160)));
+  update();
+}
+
+void CellularGlassView::setIconSize(qreal size) {
+  if (size <= 0.0 || qFuzzyCompare(iconSize_, size))
+    return;
+  iconSize_ = size;
   update();
 }
 
@@ -298,8 +304,8 @@ void CellularGlassView::paintEvent(QPaintEvent *) {
     }
 
     if (cell.item) {
-      const QRectF ir(r.center().x() - kIconSize / 2.0,
-                      r.center().y() - kIconSize / 2.0, kIconSize, kIconSize);
+      const QRectF ir(r.center().x() - iconSize_ / 2.0,
+                      r.center().y() - iconSize_ / 2.0, iconSize_, iconSize_);
       const QPixmap pm = pixmaps_.value(cell.item->id);
       if (!pm.isNull()) {
         p.drawPixmap(ir, pm, pm.rect());
@@ -365,4 +371,4 @@ void CellularGlassView::leaveEvent(QEvent *) {
     animTimer_.start(16, this);
 }
 
-} // namespace navi
+} // namespace locus

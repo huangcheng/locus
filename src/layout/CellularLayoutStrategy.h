@@ -2,7 +2,7 @@
 
 #include "core/LayoutStrategy.h"
 
-namespace navi {
+namespace locus {
 
 /// Honeycomb widget: pins fill interlocked pointy-top hex rows (3,4,3,4…),
 /// trailing slots in the last row render as dashed empty cells.
@@ -12,4 +12,4 @@ public:
                    const DensityPrefs &density) override;
 };
 
-} // namespace navi
+} // namespace locus

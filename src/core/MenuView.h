@@ -4,7 +4,7 @@
 
 class QWidget;
 
-namespace navi {
+namespace locus {
 
 class MenuView {
 public:
@@ -13,4 +13,4 @@ public:
   virtual QWidget *widget() = 0;
 };
 
-} // namespace navi
+} // namespace locus

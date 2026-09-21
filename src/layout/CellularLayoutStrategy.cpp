@@ -4,15 +4,30 @@
 
 #include <algorithm>
 
-namespace navi {
+namespace locus {
 namespace {
 
-constexpr qreal kCellW = 80.0;
-constexpr qreal kCellH = 92.0;
-constexpr qreal kPitchX = 88.0;
-constexpr qreal kPitchY = 77.0;
 constexpr qreal kMargin = 28.0;
-constexpr qreal kGridW = 344.0; // widest row (4 cells): 3*88 + 80
+
+// All metrics derive from cellSize so the grid scales uniformly; defaults
+// (80, gap 8) reproduce the original 80x92 / 88 / 77 geometry exactly.
+struct GridGeo {
+  qreal cellW;
+  qreal cellH;
+  qreal pitchX;
+  qreal pitchY;
+  qreal gridW; // widest row (4 cells)
+};
+
+GridGeo gridGeoFor(const DensityPrefs &d) {
+  GridGeo g;
+  g.cellW = d.cellSize;
+  g.cellH = d.cellSize * 1.15;
+  g.pitchX = d.cellSize + d.cellGap;
+  g.pitchY = d.cellSize * 0.9625;
+  g.gridW = 3.0 * g.pitchX + g.cellW;
+  return g;
+}
 
 int rowCapacity(int row) { return row % 2 == 0 ? 3 : 4; }
 
@@ -27,18 +42,20 @@ int rowCountFor(int pinCount) {
   return rows;
 }
 
-QRectF cellRect(int row, int col) {
+QRectF cellRect(const GridGeo &g, int row, int col) {
   const int n = rowCapacity(row);
-  const qreal rowW = (n - 1) * kPitchX + kCellW;
-  const qreal x0 = kMargin + (kGridW - rowW) / 2.0;
-  return QRectF(x0 + col * kPitchX, kMargin + row * kPitchY, kCellW, kCellH);
+  const qreal rowW = (n - 1) * g.pitchX + g.cellW;
+  const qreal x0 = kMargin + (g.gridW - rowW) / 2.0;
+  return QRectF(x0 + col * g.pitchX, kMargin + row * g.pitchY, g.cellW,
+                g.cellH);
 }
 
 } // namespace
 
 SceneModel CellularLayoutStrategy::build(const QVector<Pin> &pins,
                                          const QString &focusedId,
-                                         const DensityPrefs &) {
+                                         const DensityPrefs &density) {
+  const GridGeo geo = gridGeoFor(density);
   SceneModel scene;
   const int rows = rowCountFor(pins.size());
 
@@ -46,7 +63,7 @@ SceneModel CellularLayoutStrategy::build(const QVector<Pin> &pins,
   for (int r = 0; r < rows; ++r) {
     const int cap = rowCapacity(r);
     for (int c = 0; c < cap; ++c) {
-      const QRectF rect = cellRect(r, c);
+      const QRectF rect = cellRect(geo, r, c);
       Decoration cell;
       cell.kind = DecorationKind::Path;
       cell.bounds = rect;
@@ -79,7 +96,7 @@ SceneModel CellularLayoutStrategy::build(const QVector<Pin> &pins,
       break;
     }
   }
-  scene.hub.brandSubtitle = QStringLiteral("NAVI");
+  scene.hub.brandSubtitle = QStringLiteral("LOCUS");
   scene.hub.focusedId = focusedId;
 
   QVector<PlacedItem> ordered = scene.items;
@@ -93,4 +110,4 @@ SceneModel CellularLayoutStrategy::build(const QVector<Pin> &pins,
   return scene;
 }
 
-} // namespace navi
+} // namespace locus

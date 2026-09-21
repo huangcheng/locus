@@ -2,11 +2,11 @@
 
 class QWidget;
 
-namespace navi {
+namespace locus {
 
-/// Keeps the overlay window interactive while Navi is not the active app:
+/// Keeps the overlay window interactive while Locus is not the active app:
 /// acceptsMouseMovedEvents on the NSWindow plus a global mouse-moved monitor
 /// that forwards hovers inside the overlay as synthesized Qt mouse events.
 void macMakeOverlayLiveWhenInactive(QWidget *overlay, QWidget *content);
 
-} // namespace navi
+} // namespace locus

@@ -6,7 +6,7 @@
 
 #include <algorithm>
 
-namespace navi {
+namespace locus {
 
 PinStore::PinStore(QSettings *settings) : settings_(settings) {}
 
@@ -80,4 +80,4 @@ void PinStore::save() const {
                       QJsonDocument(array).toJson(QJsonDocument::Compact));
 }
 
-} // namespace navi
+} // namespace locus

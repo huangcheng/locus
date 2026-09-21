@@ -4,7 +4,7 @@
 #include <QScreen>
 #include <QVBoxLayout>
 
-namespace navi {
+namespace locus {
 
 OverlayWindow::OverlayWindow(QWidget *content, QWidget *parent)
     : QWidget(parent), content_(content) {
@@ -14,7 +14,7 @@ OverlayWindow::OverlayWindow(QWidget *content, QWidget *parent)
                  Qt::NoDropShadowWindowHint);
   setAttribute(Qt::WA_TranslucentBackground);
   setAttribute(Qt::WA_ShowWithoutActivating, false);
-  setWindowTitle(QStringLiteral("Navi"));
+  setWindowTitle(QStringLiteral("Locus"));
   auto *layout = new QVBoxLayout(this);
   layout->setContentsMargins(0, 0, 0, 0);
   if (content_) {
@@ -65,4 +65,4 @@ void OverlayWindow::resizeToContent() {
     resize(hint);
 }
 
-} // namespace navi
+} // namespace locus

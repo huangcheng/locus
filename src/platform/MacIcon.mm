@@ -2,7 +2,7 @@
 
 #import <AppKit/AppKit.h>
 
-namespace navi {
+namespace locus {
 
 QPixmap macIconForPath(const QString &path, int size) {
   @autoreleasepool {
@@ -50,4 +50,4 @@ QPixmap macIconForPath(const QString &path, int size) {
   }
 }
 
-} // namespace navi
+} // namespace locus

@@ -6,7 +6,7 @@
 #include <QMouseEvent>
 #include <QWidget>
 
-namespace navi {
+namespace locus {
 
 void macMakeOverlayLiveWhenInactive(QWidget *overlay, QWidget *content) {
   if (!overlay || !content)
@@ -18,7 +18,7 @@ void macMakeOverlayLiveWhenInactive(QWidget *overlay, QWidget *content) {
     win.hidesOnDeactivate = NO;
   }
 
-  // While Navi is not the active app, AppKit delivers no mouse-moved events
+  // While Locus is not the active app, AppKit delivers no mouse-moved events
   // to our window — hover selection and the animations would go dead.
   // A global monitor still sees them; forward the ones inside the overlay
   // as synthesized Qt mouse moves (and a Leave when the cursor exits).
@@ -55,4 +55,4 @@ void macMakeOverlayLiveWhenInactive(QWidget *overlay, QWidget *content) {
   });
 }
 
-} // namespace navi
+} // namespace locus

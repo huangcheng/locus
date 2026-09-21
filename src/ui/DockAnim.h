@@ -4,7 +4,7 @@
 
 #include <cmath>
 
-namespace navi::dockanim {
+namespace locus::dockanim {
 
 constexpr qreal kPi = 3.14159265358979323846;
 
@@ -37,4 +37,4 @@ inline qreal pressDip(qreal t, qreal depth) {
   return 1.0 - depth * std::sin(t * kPi);
 }
 
-} // namespace navi::dockanim
+} // namespace locus::dockanim

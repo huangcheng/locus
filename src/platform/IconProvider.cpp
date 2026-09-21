@@ -7,7 +7,7 @@
 #include "platform/MacIcon.h"
 #endif
 
-namespace navi {
+namespace locus {
 
 QIcon IconProvider::iconForPath(const QString &appPath) const {
   if (appPath.isEmpty())
@@ -23,4 +23,4 @@ QIcon IconProvider::iconForPath(const QString &appPath) const {
   return provider.icon(QFileInfo(appPath));
 }
 
-} // namespace navi
+} // namespace locus

@@ -3,7 +3,7 @@
 #include <QDesktopServices>
 #include <QUrl>
 
-namespace navi {
+namespace locus {
 
 bool AppLauncher::launch(const QString &appPath) const {
   if (appPath.isEmpty())
@@ -11,4 +11,4 @@ bool AppLauncher::launch(const QString &appPath) const {
   return QDesktopServices::openUrl(QUrl::fromLocalFile(appPath));
 }
 
-} // namespace navi
+} // namespace locus

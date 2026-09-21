@@ -13,7 +13,7 @@
 
 class QPainter;
 
-namespace navi {
+namespace locus {
 
 class CellularGlassView : public QWidget, public MenuView {
   Q_OBJECT
@@ -26,6 +26,7 @@ public:
 
   void setAppearance(Appearance appearance);
   void setIcon(const QString &pinId, const QIcon &icon);
+  void setIconSize(qreal size);
 
   /// Replays the center-out open pop. Call each time the widget is shown.
   void playOpenAnimation();
@@ -50,6 +51,7 @@ private:
 
   SceneModel scene_;
   Appearance appearance_ = Appearance::Dark;
+  qreal iconSize_ = 40.0;
   QHash<QString, QPixmap> pixmaps_; // high-res render cache for smooth scaling
   QString lastHover_;
 
@@ -66,4 +68,4 @@ private:
   QElapsedTimer clock_;
 };
 
-} // namespace navi
+} // namespace locus

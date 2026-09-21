@@ -6,7 +6,7 @@
 class QAction;
 class QMenu;
 
-namespace navi {
+namespace locus {
 
 class TrayController : public QObject {
   Q_OBJECT
@@ -23,4 +23,4 @@ private:
   QMenu *menu_ = nullptr;
 };
 
-} // namespace navi
+} // namespace locus

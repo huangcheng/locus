@@ -7,7 +7,7 @@
 #include <QIcon>
 #include <QWidget>
 
-namespace navi {
+namespace locus {
 
 class OrbitalGlassView : public QWidget, public MenuView {
   Q_OBJECT
@@ -42,4 +42,4 @@ private:
   QString lastHover_;
 };
 
-} // namespace navi
+} // namespace locus

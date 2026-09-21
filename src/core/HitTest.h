@@ -5,7 +5,7 @@
 #include <QPointF>
 #include <QString>
 
-namespace navi {
+namespace locus {
 
 /// First Item in hitOrder whose shape (or bounds) contains point; else empty.
 inline QString hitTest(const SceneModel &scene, QPointF p) {
@@ -24,4 +24,4 @@ inline QString hitTest(const SceneModel &scene, QPointF p) {
   return {};
 }
 
-} // namespace navi
+} // namespace locus

@@ -1,4 +1,4 @@
-# Navi — Architecture Design
+# Locus — Architecture Design
 
 **Date:** 2026-09-20  
 **Status:** Draft for review  
@@ -7,7 +7,7 @@
 
 ## Goal
 
-Navi is a cross-platform, hotkey + tray summonable floating radial launcher. Pins are manual. The product must support multiple UI skins over time without rewriting core behavior:
+Locus is a cross-platform, hotkey + tray summonable floating radial launcher. Pins are manual. The product must support multiple UI skins over time without rewriting core behavior:
 
 - **Orbital** (v1) — multi-ring selection orbitals, liquid glass
 - **Cellular** (later)

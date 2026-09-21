@@ -1,6 +1,6 @@
 #include "core/Prefs.h"
 
-namespace navi {
+namespace locus {
 
 Prefs::Prefs(QSettings *settings) : settings_(settings) {}
 
@@ -47,9 +47,20 @@ void Prefs::load() {
   density_.gap = settings_->value(QStringLiteral("density/gap"), 12.0).toDouble();
   density_.widgetSize =
       settings_->value(QStringLiteral("density/widgetSize"), 560.0).toDouble();
-  hotkey_ = QKeySequence(
-      settings_->value(QStringLiteral("hotkey"), QStringLiteral("Ctrl+Space"))
-          .toString());
+  density_.cellSize =
+      settings_->value(QStringLiteral("density/cellSize"), 80.0).toDouble();
+  density_.cellGap =
+      settings_->value(QStringLiteral("density/cellGap"), 8.0).toDouble();
+  density_.iconSize =
+      settings_->value(QStringLiteral("density/iconSize"), 40.0).toDouble();
+  const QString hotkeyStr =
+      settings_->value(QStringLiteral("hotkey"), QStringLiteral("Meta+Space"))
+          .toString();
+  // "Ctrl+Space" was the pre-macOS-aware default (Qt::CTRL = Command there);
+  // migrate it to the real Control key. User-recorded shortcuts are untouched.
+  hotkey_ = QKeySequence(hotkeyStr == QStringLiteral("Ctrl+Space")
+                             ? QStringLiteral("Meta+Space")
+                             : hotkeyStr);
 }
 
 void Prefs::save() const {
@@ -61,7 +72,10 @@ void Prefs::save() const {
   settings_->setValue(QStringLiteral("density/maxPerRing"), density_.maxPerRing);
   settings_->setValue(QStringLiteral("density/gap"), density_.gap);
   settings_->setValue(QStringLiteral("density/widgetSize"), density_.widgetSize);
+  settings_->setValue(QStringLiteral("density/cellSize"), density_.cellSize);
+  settings_->setValue(QStringLiteral("density/cellGap"), density_.cellGap);
+  settings_->setValue(QStringLiteral("density/iconSize"), density_.iconSize);
   settings_->setValue(QStringLiteral("hotkey"), hotkey_.toString());
 }
 
-} // namespace navi
+} // namespace locus

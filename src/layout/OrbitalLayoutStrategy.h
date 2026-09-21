@@ -2,7 +2,7 @@
 
 #include "core/LayoutStrategy.h"
 
-namespace navi {
+namespace locus {
 
 class OrbitalLayoutStrategy : public LayoutStrategy {
 public:
@@ -16,4 +16,4 @@ private:
   qreal rotationRadians_ = 0;
 };
 
-} // namespace navi
+} // namespace locus

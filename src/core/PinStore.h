@@ -5,7 +5,7 @@
 #include <QSettings>
 #include <QVector>
 
-namespace navi {
+namespace locus {
 
 class PinStore {
 public:
@@ -25,4 +25,4 @@ private:
   QVector<Pin> pins_;
 };
 
-} // namespace navi
+} // namespace locus
