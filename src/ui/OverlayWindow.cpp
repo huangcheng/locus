@@ -8,10 +8,15 @@ namespace locus {
 
 OverlayWindow::OverlayWindow(QWidget *content, QWidget *parent)
     : QWidget(parent), content_(content) {
-  // Qt::Tool is easy to miss on macOS (no dock tile, can fail to raise).
-  // Use a normal top-level window that stays above others.
+  // Qt::Tool is easy to miss on macOS (no dock tile, can fail to raise),
+  // but on Windows a plain Qt::Window shows a taskbar button for the widget.
+#ifdef Q_OS_WIN
+  setWindowFlags(Qt::Tool | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint |
+                 Qt::NoDropShadowWindowHint);
+#else
   setWindowFlags(Qt::Window | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint |
                  Qt::NoDropShadowWindowHint);
+#endif
   setAttribute(Qt::WA_TranslucentBackground);
   setAttribute(Qt::WA_ShowWithoutActivating, false);
   setWindowTitle(QStringLiteral("Locus"));
