@@ -8,6 +8,7 @@ class QButtonGroup;
 class QKeySequenceEdit;
 class QLabel;
 class QListWidget;
+class QPushButton;
 class QSlider;
 class QStackedWidget;
 class QToolButton;
@@ -33,6 +34,9 @@ public:
   /// Re-sync every control from prefs/pins (call before showing).
   void refreshFromModel();
 
+  /// Re-apply every user-visible string after the app language changes.
+  void retranslateUi();
+
   /// Switch the visible pane (0 General, 1 Pins, 2 Density).
   void selectPane(int index);
 
@@ -41,6 +45,7 @@ signals:
   void styleChanged();
   void densityChanged();
   void pinsChanged();
+  void languageChanged();
 
 protected:
   void showEvent(QShowEvent *event) override;
@@ -65,23 +70,40 @@ private:
   QButtonGroup *navGroup_ = nullptr;
 
   // General pane
+  QLabel *generalTitle_ = nullptr;
+  QLabel *themeLabel_ = nullptr;
   QButtonGroup *themeGroup_ = nullptr;
+  QLabel *languageLabel_ = nullptr;
+  QButtonGroup *languageGroup_ = nullptr;
+  QLabel *styleLabel_ = nullptr;
   QWidget *styleTileHex_ = nullptr;
   QWidget *styleTileOrbit_ = nullptr;
+  QLabel *hotkeyLabel_ = nullptr;
+  QLabel *hotkeyCaption_ = nullptr;
   QKeySequenceEdit *hotkeyEdit_ = nullptr;
+  QLabel *loginLabel_ = nullptr;
   QWidget *loginToggle_ = nullptr;
 
   // Pins pane
+  QLabel *pinsTitle_ = nullptr;
   QListWidget *pinList_ = nullptr;
   QLabel *pinCount_ = nullptr;
+  QPushButton *addAppBtn_ = nullptr;
+  QLabel *pinsNote_ = nullptr;
 
   // Density pane
+  QLabel *densityTitle_ = nullptr;
+  QLabel *cellSizeLabel_ = nullptr;
+  QLabel *cellGapLabel_ = nullptr;
+  QLabel *iconSizeLabel_ = nullptr;
   QSlider *cellSizeSlider_ = nullptr;
   QSlider *cellGapSlider_ = nullptr;
   QSlider *iconSizeSlider_ = nullptr;
   QLabel *cellSizeValue_ = nullptr;
   QLabel *cellGapValue_ = nullptr;
   QLabel *iconSizeValue_ = nullptr;
+  QLabel *previewCaption_ = nullptr;
+  QLabel *densityNote_ = nullptr;
   QWidget *densityPreview_ = nullptr;
 };
 

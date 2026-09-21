@@ -7,9 +7,10 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Widgets Test Network)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Widgets Test Network LinguistTools)
 
 set(LOCUS_CORE_SOURCES
+  src/core/Localization.cpp
   src/core/Pin.cpp
   src/core/SessionController.cpp
   src/core/PinStore.cpp
@@ -56,6 +57,15 @@ else()
   add_executable(locus src/main.cpp)
 endif()
 target_link_libraries(locus PRIVATE locus_core Qt6::Widgets Qt6::Network)
+
+# Translations: .ts → .qm at build time, embedded at :/i18n (attached to the
+# executable target so the static-lib linker-drop issue can't apply).
+# Regenerate sources after adding tr() strings with:
+#   cmake --build build2 --target update_translations
+qt_add_translations(locus
+  TS_FILES resources/i18n/locus_zh_CN.ts
+  RESOURCE_PREFIX "/i18n"
+)
 
 enable_testing()
 

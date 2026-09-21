@@ -13,6 +13,9 @@ class TrayController : public QObject {
 public:
   explicit TrayController(QObject *parent = nullptr);
 
+  /// Re-apply menu strings after the app language changes.
+  void retranslate();
+
 signals:
   void showRequested();
   void prefsRequested();
@@ -21,6 +24,9 @@ signals:
 private:
   QSystemTrayIcon tray_;
   QMenu *menu_ = nullptr;
+  QAction *showAction_ = nullptr;
+  QAction *prefsAction_ = nullptr;
+  QAction *quitAction_ = nullptr;
 };
 
 } // namespace locus

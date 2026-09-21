@@ -24,6 +24,10 @@ public:
   QKeySequence hotkey() const { return hotkey_; }
   void setHotkey(QKeySequence seq);
 
+  // 0 = System, 1 = English, 2 = 简体中文
+  int language() const { return language_; }
+  void setLanguage(int language);
+
   void load();
   void save() const;
 
@@ -34,6 +38,7 @@ private:
   DensityPrefs density_;
   // Meta on macOS = the real Control key (Qt::CTRL maps to Command there).
   QKeySequence hotkey_ = QKeySequence(Qt::META | Qt::Key_Space);
+  int language_ = 0;
 };
 
 } // namespace locus

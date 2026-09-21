@@ -24,6 +24,11 @@ void Prefs::setHotkey(QKeySequence seq) {
   save();
 }
 
+void Prefs::setLanguage(int language) {
+  language_ = language;
+  save();
+}
+
 void Prefs::load() {
   if (!settings_)
     return;
@@ -61,6 +66,9 @@ void Prefs::load() {
   hotkey_ = QKeySequence(hotkeyStr == QStringLiteral("Ctrl+Space")
                              ? QStringLiteral("Meta+Space")
                              : hotkeyStr);
+  const int languageInt =
+      settings_->value(QStringLiteral("language"), 0).toInt();
+  language_ = (languageInt >= 0 && languageInt <= 2) ? languageInt : 0;
 }
 
 void Prefs::save() const {
@@ -76,6 +84,7 @@ void Prefs::save() const {
   settings_->setValue(QStringLiteral("density/cellGap"), density_.cellGap);
   settings_->setValue(QStringLiteral("density/iconSize"), density_.iconSize);
   settings_->setValue(QStringLiteral("hotkey"), hotkey_.toString());
+  settings_->setValue(QStringLiteral("language"), language_);
 }
 
 } // namespace locus

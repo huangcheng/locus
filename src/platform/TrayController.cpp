@@ -31,14 +31,14 @@ QIcon trayIcon() {
 
 TrayController::TrayController(QObject *parent) : QObject(parent), tray_(this) {
   menu_ = new QMenu;
-  auto *showAction = menu_->addAction(tr("Show Locus"));
-  auto *prefsAction = menu_->addAction(tr("Preferences…"));
+  showAction_ = menu_->addAction(tr("Show Locus"));
+  prefsAction_ = menu_->addAction(tr("Preferences…"));
   menu_->addSeparator();
-  auto *quitAction = menu_->addAction(tr("Quit"));
+  quitAction_ = menu_->addAction(tr("Quit"));
 
-  connect(showAction, &QAction::triggered, this, &TrayController::showRequested);
-  connect(prefsAction, &QAction::triggered, this, &TrayController::prefsRequested);
-  connect(quitAction, &QAction::triggered, this, &TrayController::quitRequested);
+  connect(showAction_, &QAction::triggered, this, &TrayController::showRequested);
+  connect(prefsAction_, &QAction::triggered, this, &TrayController::prefsRequested);
+  connect(quitAction_, &QAction::triggered, this, &TrayController::quitRequested);
   connect(&tray_, &QSystemTrayIcon::activated, this,
           [this](QSystemTrayIcon::ActivationReason reason) {
             if (reason == QSystemTrayIcon::Trigger ||
@@ -61,6 +61,13 @@ TrayController::TrayController(QObject *parent) : QObject(parent), tray_(this) {
   // Nudge macOS status item registration for non-activated launches.
   tray_.hide();
   tray_.show();
+}
+
+void TrayController::retranslate() {
+  showAction_->setText(tr("Show Locus"));
+  prefsAction_->setText(tr("Preferences…"));
+  quitAction_->setText(tr("Quit"));
+  tray_.setToolTip(tr("Locus"));
 }
 
 } // namespace locus

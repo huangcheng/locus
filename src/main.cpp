@@ -1,3 +1,4 @@
+#include "core/Localization.h"
 #include "core/PinStore.h"
 #include "core/Prefs.h"
 #include "core/SessionController.h"
@@ -92,6 +93,7 @@ int main(int argc, char *argv[]) {
   QSettings settings;
   locus::Prefs prefs(&settings);
   prefs.load();
+  locus::installLocusTranslator(prefs.language());
   locus::PinStore pinStore(&settings);
   pinStore.load();
   if (pinStore.pins().isEmpty())
@@ -265,6 +267,12 @@ int main(int argc, char *argv[]) {
     applyIcons();
     rebuild();
   });
+  QObject::connect(&prefsWindow, &locus::PrefsWindow::languageChanged, &app,
+                   [&] {
+                     locus::installLocusTranslator(prefs.language());
+                     prefsWindow.retranslateUi();
+                     tray.retranslate();
+                   });
   QObject::connect(&tray, &locus::TrayController::showRequested, &app, showMenu);
   QObject::connect(&tray, &locus::TrayController::quitRequested, &app,
                    &QApplication::quit);

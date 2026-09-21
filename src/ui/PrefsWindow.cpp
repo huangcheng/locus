@@ -62,21 +62,22 @@ Palette paletteFor(Appearance appearance) {
     p.controlBg = QColor(255, 255, 255, 15);
     p.trackOff = QColor(255, 255, 255, 45);
   } else {
-    p.sidebarBg = QColor(255, 255, 255, 80);
-    p.separator = QColor(60, 50, 30, 18);
-    p.cardBg = QColor(255, 255, 255, 150);
-    p.cardBorder = QColor(60, 50, 30, 22);
-    p.text = QColor(30, 24, 14, 235);
-    p.secondary = QColor(30, 24, 14, 140);
-    p.faint = QColor(30, 24, 14, 110);
-    p.amber = QColor("#EEC86D");
-    p.amberBright = QColor("#F8DD9C");
-    p.amberDeep = QColor("#E0B85A");
-    p.onAmber = QColor("#241A08");
-    p.accentText = QColor("#8A6D1F");
-    p.amberTint = QColor(238, 200, 109, 60);
-    p.controlBg = QColor(30, 24, 14, 14);
-    p.trackOff = QColor(30, 24, 14, 50);
+    p.sidebarBg = QColor(0, 0, 0, 6);
+    p.separator = QColor(0, 0, 0, 20);
+    p.cardBg = QColor("#FFFFFF");
+    p.cardBorder = QColor(0, 0, 0, 16);
+    p.text = QColor("#1D1D1F");
+    p.secondary = QColor("#6E6E73");
+    p.faint = QColor("#8E8E93");
+    // Light mode is monochrome: graphite accents instead of amber.
+    p.amber = QColor("#1D1D1F");
+    p.amberBright = QColor("#3A3A3C");
+    p.amberDeep = QColor("#000000");
+    p.onAmber = QColor("#FFFFFF");
+    p.accentText = QColor("#1D1D1F");
+    p.amberTint = QColor(0, 0, 0, 12);
+    p.controlBg = QColor(0, 0, 0, 10);
+    p.trackOff = QColor(0, 0, 0, 45);
   }
   return p;
 }
@@ -150,7 +151,6 @@ public:
   explicit Toggle(QWidget *parent = nullptr) : QWidget(parent) {
     setFixedSize(36, 22);
     setCursor(Qt::PointingHandCursor);
-    setAccessibleName(QStringLiteral("Launch at login"));
   }
 
   void setColors(const Palette &pal) {
@@ -247,6 +247,10 @@ public:
   }
   void setCaption(const QString &caption) {
     caption_ = caption;
+    update();
+  }
+  void setTitle(const QString &title) {
+    title_ = title;
     update();
   }
 
@@ -398,7 +402,8 @@ protected:
 
 class PinRowWidget : public QFrame {
 public:
-  PinRowWidget(const Pin &pin, const QIcon &icon, QWidget *parent = nullptr)
+  PinRowWidget(const Pin &pin, const QIcon &icon, const QString &removeTooltip,
+               QWidget *parent = nullptr)
       : QFrame(parent) {
     setObjectName(QStringLiteral("pinRow"));
     setAttribute(Qt::WA_StyledBackground, true);
@@ -430,7 +435,7 @@ public:
     remove->setText(QStringLiteral("×"));
     remove->setFixedSize(24, 24);
     remove->setCursor(Qt::PointingHandCursor);
-    remove->setToolTip(QStringLiteral("Remove from Locus"));
+    remove->setToolTip(removeTooltip);
     lay->addWidget(remove);
     QObject::connect(remove, &QToolButton::clicked, this,
                      [this] { onRemove(); });
@@ -445,7 +450,7 @@ public:
 PrefsWindow::PrefsWindow(Prefs *prefs, PinStore *pins,
                          const IconProvider *icons, QWidget *parent)
     : QWidget(parent, Qt::Window), prefs_(prefs), pins_(pins), icons_(icons) {
-  setWindowTitle(QStringLiteral("Locus Settings"));
+  setWindowTitle(tr("Locus Settings"));
   setObjectName(QStringLiteral("prefsRoot"));
   setAttribute(Qt::WA_StyledBackground, true);
   resize(680, 560);
@@ -465,9 +470,7 @@ PrefsWindow::PrefsWindow(Prefs *prefs, PinStore *pins,
 
   navGroup_ = new QButtonGroup(this);
   navGroup_->setExclusive(true);
-  const QStringList navNames = {QStringLiteral("General"),
-                                QStringLiteral("Pins"),
-                                QStringLiteral("Density")};
+  const QStringList navNames = {tr("General"), tr("Pins"), tr("Density")};
   for (int i = 0; i < navNames.size(); ++i) {
     auto *btn = new QToolButton(sidebar);
     btn->setObjectName(QStringLiteral("navBtn"));
@@ -578,13 +581,13 @@ void PrefsWindow::applyPalette() {
                     .arg(css(p.amberDeep))          // 13
                     .arg(css(appearance_ == Appearance::Dark
                                  ? QColor("#131017")
-                                 : QColor("#ECE8E1")))); // 14
+                                 : QColor("#F5F5F7")))); // 14
 
   // Window background itself (QWidget base color).
   QPalette wp = palette();
   wp.setColor(QPalette::Window, appearance_ == Appearance::Dark
                                     ? QColor("#131017")
-                                    : QColor("#ECE8E1"));
+                                    : QColor("#F5F5F7"));
   setPalette(wp);
   setAutoFillBackground(true);
 
@@ -598,22 +601,71 @@ void PrefsWindow::applyPalette() {
   static_cast<MiniHoneycomb *>(densityPreview_)->setPaletteColors(p);
 }
 
+void PrefsWindow::retranslateUi() {
+  setWindowTitle(tr("Locus Settings"));
+
+  const QStringList navNames = {tr("General"), tr("Pins"), tr("Density")};
+  const auto navButtons = navGroup_->buttons();
+  for (int i = 0; i < navButtons.size() && i < navNames.size(); ++i)
+    navButtons[i]->setText(navNames[i]);
+
+  // General
+  generalTitle_->setText(tr("General"));
+  themeLabel_->setText(tr("Theme"));
+  const QStringList themes = {tr("Dark"), tr("Light"), tr("System")};
+  const auto themeButtons = themeGroup_->buttons();
+  for (int i = 0; i < themeButtons.size() && i < themes.size(); ++i)
+    themeButtons[i]->setText(themes[i]);
+  languageLabel_->setText(tr("Language"));
+  const QStringList languages = {tr("System"), tr("English"), tr("简体中文")};
+  const auto langButtons = languageGroup_->buttons();
+  for (int i = 0; i < langButtons.size() && i < languages.size(); ++i)
+    langButtons[i]->setText(languages[i]);
+  styleLabel_->setText(tr("Menu style"));
+  static_cast<StyleTile *>(styleTileHex_)->setTitle(tr("Honeycomb"));
+  static_cast<StyleTile *>(styleTileOrbit_)->setTitle(tr("Orbit"));
+  hotkeyLabel_->setText(tr("Global hotkey"));
+  hotkeyCaption_->setText(tr("Summons the launcher from any app, even "
+                             "while Locus is in the background."));
+  loginLabel_->setText(tr("Launch at login"));
+  loginToggle_->setAccessibleName(tr("Launch at login"));
+
+  // Pins
+  pinsTitle_->setText(tr("Pinned Apps"));
+  addAppBtn_->setText(tr("Add App"));
+  pinsNote_->setText(
+      tr("Drag to reorder — the widget reflows the grid instantly."));
+
+  // Density
+  densityTitle_->setText(tr("Density"));
+  cellSizeLabel_->setText(tr("Cell size"));
+  cellGapLabel_->setText(tr("Cell spacing"));
+  iconSizeLabel_->setText(tr("Icon size"));
+  previewCaption_->setText(tr("Live preview · selected cell highlighted"));
+  densityNote_->setText(
+      tr("When apps overflow the grid, a new row opens automatically."));
+
+  // Tile captions, value labels and pin-row tooltips come from the model.
+  refreshFromModel();
+}
+
 QWidget *PrefsWindow::buildGeneralPane() {
   auto *pane = new QWidget(this);
   auto *lay = new QVBoxLayout(pane);
   lay->setContentsMargins(28, 24, 28, 24);
   lay->setSpacing(16);
 
-  auto *title = new QLabel(QStringLiteral("General"), pane);
-  title->setObjectName(QStringLiteral("paneTitle"));
-  lay->addWidget(title);
+  generalTitle_ = new QLabel(tr("General"), pane);
+  generalTitle_->setObjectName(QStringLiteral("paneTitle"));
+  lay->addWidget(generalTitle_);
 
   // Theme
   auto *themeCard = new QFrame(pane);
   themeCard->setObjectName(QStringLiteral("card"));
   auto *themeRow = new QHBoxLayout(themeCard);
   themeRow->setContentsMargins(16, 14, 16, 14);
-  themeRow->addWidget(new QLabel(QStringLiteral("Theme"), themeCard));
+  themeLabel_ = new QLabel(tr("Theme"), themeCard);
+  themeRow->addWidget(themeLabel_);
   auto *seg = new QFrame(themeCard);
   seg->setObjectName(QStringLiteral("seg"));
   auto *segLay = new QHBoxLayout(seg);
@@ -621,8 +673,7 @@ QWidget *PrefsWindow::buildGeneralPane() {
   segLay->setSpacing(2);
   themeGroup_ = new QButtonGroup(this);
   themeGroup_->setExclusive(true);
-  const QStringList themes = {QStringLiteral("Dark"), QStringLiteral("Light"),
-                              QStringLiteral("System")};
+  const QStringList themes = {tr("Dark"), tr("Light"), tr("System")};
   for (int i = 0; i < themes.size(); ++i) {
     auto *btn = new QToolButton(seg);
     btn->setObjectName(QStringLiteral("segBtn"));
@@ -638,19 +689,52 @@ QWidget *PrefsWindow::buildGeneralPane() {
     emit appearanceChanged();
   });
 
+  // Language
+  auto *langCard = new QFrame(pane);
+  langCard->setObjectName(QStringLiteral("card"));
+  auto *langRow = new QHBoxLayout(langCard);
+  langRow->setContentsMargins(16, 14, 16, 14);
+  languageLabel_ = new QLabel(tr("Language"), langCard);
+  langRow->addWidget(languageLabel_);
+  auto *langSeg = new QFrame(langCard);
+  langSeg->setObjectName(QStringLiteral("seg"));
+  auto *langSegLay = new QHBoxLayout(langSeg);
+  langSegLay->setContentsMargins(2, 2, 2, 2);
+  langSegLay->setSpacing(2);
+  languageGroup_ = new QButtonGroup(this);
+  languageGroup_->setExclusive(true);
+  const QStringList languages = {tr("System"), tr("English"),
+                                 tr("简体中文")};
+  for (int i = 0; i < languages.size(); ++i) {
+    auto *btn = new QToolButton(langSeg);
+    btn->setObjectName(QStringLiteral("segBtn"));
+    btn->setText(languages[i]);
+    btn->setCheckable(true);
+    languageGroup_->addButton(btn, i);
+    langSegLay->addWidget(btn);
+  }
+  langRow->addWidget(langSeg);
+  lay->addWidget(langCard);
+  connect(languageGroup_, &QButtonGroup::idClicked, this, [this](int id) {
+    if (id == prefs_->language())
+      return;
+    prefs_->setLanguage(id);
+    emit languageChanged();
+  });
+
   // Menu style
   auto *styleCard = new QFrame(pane);
   styleCard->setObjectName(QStringLiteral("card"));
   auto *styleLay = new QVBoxLayout(styleCard);
   styleLay->setContentsMargins(16, 14, 16, 14);
   styleLay->setSpacing(12);
-  styleLay->addWidget(new QLabel(QStringLiteral("Menu style"), styleCard));
+  styleLabel_ = new QLabel(tr("Menu style"), styleCard);
+  styleLay->addWidget(styleLabel_);
   auto *tiles = new QHBoxLayout;
   tiles->setSpacing(10);
-  auto *hexTile = new StyleTile(StyleTile::Honeycomb,
-                                QStringLiteral("Honeycomb"), styleCard);
-  auto *orbitTile =
-      new StyleTile(StyleTile::Orbit, QStringLiteral("Orbit"), styleCard);
+  auto *hexTile = new StyleTile(StyleTile::Honeycomb, tr("Honeycomb"),
+                                styleCard);
+  auto *orbitTile = new StyleTile(StyleTile::Orbit, tr("Orbit"), styleCard);
   styleTileHex_ = hexTile;
   styleTileOrbit_ = orbitTile;
   hexTile->onClicked = [this] {
@@ -679,19 +763,18 @@ QWidget *PrefsWindow::buildGeneralPane() {
   hotkeyLay->setContentsMargins(16, 14, 16, 14);
   hotkeyLay->setSpacing(10);
   auto *hotkeyRow = new QHBoxLayout;
-  hotkeyRow->addWidget(
-      new QLabel(QStringLiteral("Global hotkey"), hotkeyCard));
+  hotkeyLabel_ = new QLabel(tr("Global hotkey"), hotkeyCard);
+  hotkeyRow->addWidget(hotkeyLabel_);
   hotkeyEdit_ = new QKeySequenceEdit(hotkeyCard);
   hotkeyEdit_->setFixedWidth(150);
   hotkeyRow->addWidget(hotkeyEdit_, 0, Qt::AlignRight);
   hotkeyLay->addLayout(hotkeyRow);
-  auto *hotkeyCaption =
-      new QLabel(QStringLiteral("Summons the launcher from any app, even "
-                                "while Locus is in the background."),
-                 hotkeyCard);
-  hotkeyCaption->setObjectName(QStringLiteral("caption"));
-  hotkeyCaption->setWordWrap(true);
-  hotkeyLay->addWidget(hotkeyCaption);
+  hotkeyCaption_ = new QLabel(tr("Summons the launcher from any app, even "
+                                 "while Locus is in the background."),
+                              hotkeyCard);
+  hotkeyCaption_->setObjectName(QStringLiteral("caption"));
+  hotkeyCaption_->setWordWrap(true);
+  hotkeyLay->addWidget(hotkeyCaption_);
   lay->addWidget(hotkeyCard);
   connect(hotkeyEdit_, &QKeySequenceEdit::editingFinished, this,
           [this] { prefs_->setHotkey(hotkeyEdit_->keySequence()); });
@@ -701,8 +784,10 @@ QWidget *PrefsWindow::buildGeneralPane() {
   loginCard->setObjectName(QStringLiteral("card"));
   auto *loginRow = new QHBoxLayout(loginCard);
   loginRow->setContentsMargins(16, 14, 16, 14);
-  loginRow->addWidget(new QLabel(QStringLiteral("Launch at login"), loginCard));
+  loginLabel_ = new QLabel(tr("Launch at login"), loginCard);
+  loginRow->addWidget(loginLabel_);
   auto *toggle = new Toggle(loginCard);
+  toggle->setAccessibleName(tr("Launch at login"));
   loginToggle_ = toggle;
   toggle->onToggled = [this, toggle](bool on) {
     if (!macSetLaunchAtLogin(on)) {
@@ -724,19 +809,19 @@ QWidget *PrefsWindow::buildPinsPane() {
   lay->setSpacing(16);
 
   auto *header = new QHBoxLayout;
-  auto *title = new QLabel(QStringLiteral("Pinned Apps"), pane);
-  title->setObjectName(QStringLiteral("paneTitle"));
-  header->addWidget(title);
+  pinsTitle_ = new QLabel(tr("Pinned Apps"), pane);
+  pinsTitle_->setObjectName(QStringLiteral("paneTitle"));
+  header->addWidget(pinsTitle_);
   pinCount_ = new QLabel(pane);
   pinCount_->setObjectName(QStringLiteral("countChip"));
   header->addWidget(pinCount_);
   header->addStretch();
-  auto *addBtn = new QPushButton(QStringLiteral("Add App"), pane);
-  addBtn->setObjectName(QStringLiteral("amberBtn"));
-  addBtn->setCursor(Qt::PointingHandCursor);
-  header->addWidget(addBtn);
+  addAppBtn_ = new QPushButton(tr("Add App"), pane);
+  addAppBtn_->setObjectName(QStringLiteral("amberBtn"));
+  addAppBtn_->setCursor(Qt::PointingHandCursor);
+  header->addWidget(addAppBtn_);
   lay->addLayout(header);
-  connect(addBtn, &QPushButton::clicked, this, &PrefsWindow::addApp);
+  connect(addAppBtn_, &QPushButton::clicked, this, &PrefsWindow::addApp);
 
   auto *card = new QFrame(pane);
   card->setObjectName(QStringLiteral("card"));
@@ -760,11 +845,10 @@ QWidget *PrefsWindow::buildPinsPane() {
   connect(pinList_->model(), &QAbstractItemModel::rowsMoved, this,
           [this] { commitPinOrder(); });
 
-  auto *note = new QLabel(
-      QStringLiteral("Drag to reorder — the widget reflows the grid instantly."),
-      pane);
-  note->setObjectName(QStringLiteral("caption"));
-  lay->addWidget(note);
+  pinsNote_ = new QLabel(
+      tr("Drag to reorder — the widget reflows the grid instantly."), pane);
+  pinsNote_->setObjectName(QStringLiteral("caption"));
+  lay->addWidget(pinsNote_);
   return pane;
 }
 
@@ -774,9 +858,9 @@ QWidget *PrefsWindow::buildDensityPane() {
   lay->setContentsMargins(28, 24, 28, 24);
   lay->setSpacing(16);
 
-  auto *title = new QLabel(QStringLiteral("Density"), pane);
-  title->setObjectName(QStringLiteral("paneTitle"));
-  lay->addWidget(title);
+  densityTitle_ = new QLabel(tr("Density"), pane);
+  densityTitle_->setObjectName(QStringLiteral("paneTitle"));
+  lay->addWidget(densityTitle_);
 
   auto *card = new QFrame(pane);
   card->setObjectName(QStringLiteral("card"));
@@ -785,11 +869,13 @@ QWidget *PrefsWindow::buildDensityPane() {
   cardLay->setSpacing(18);
 
   auto makeSetting = [&](const QString &label, int min, int max,
-                         QSlider *&sliderOut, QLabel *&valueOut) {
+                         QLabel *&labelOut, QSlider *&sliderOut,
+                         QLabel *&valueOut) {
     auto *box = new QVBoxLayout;
     box->setSpacing(8);
     auto *row = new QHBoxLayout;
-    row->addWidget(new QLabel(label, card));
+    labelOut = new QLabel(label, card);
+    row->addWidget(labelOut);
     valueOut = new QLabel(card);
     valueOut->setObjectName(QStringLiteral("valueLabel"));
     row->addWidget(valueOut, 0, Qt::AlignRight);
@@ -799,11 +885,11 @@ QWidget *PrefsWindow::buildDensityPane() {
     box->addWidget(sliderOut);
     cardLay->addLayout(box);
   };
-  makeSetting(QStringLiteral("Cell size"), 64, 96, cellSizeSlider_,
+  makeSetting(tr("Cell size"), 64, 96, cellSizeLabel_, cellSizeSlider_,
               cellSizeValue_);
-  makeSetting(QStringLiteral("Cell spacing"), 4, 16, cellGapSlider_,
+  makeSetting(tr("Cell spacing"), 4, 16, cellGapLabel_, cellGapSlider_,
               cellGapValue_);
-  makeSetting(QStringLiteral("Icon size"), 28, 48, iconSizeSlider_,
+  makeSetting(tr("Icon size"), 28, 48, iconSizeLabel_, iconSizeSlider_,
               iconSizeValue_);
   lay->addWidget(card);
 
@@ -813,9 +899,9 @@ QWidget *PrefsWindow::buildDensityPane() {
     d.cellGap = cellGapSlider_->value();
     d.iconSize = iconSizeSlider_->value();
     prefs_->setDensity(d);
-    cellSizeValue_->setText(QStringLiteral("%1 px").arg(cellSizeSlider_->value()));
-    cellGapValue_->setText(QStringLiteral("%1 px").arg(cellGapSlider_->value()));
-    iconSizeValue_->setText(QStringLiteral("%1 px").arg(iconSizeSlider_->value()));
+    cellSizeValue_->setText(tr("%1 px").arg(cellSizeSlider_->value()));
+    cellGapValue_->setText(tr("%1 px").arg(cellGapSlider_->value()));
+    iconSizeValue_->setText(tr("%1 px").arg(iconSizeSlider_->value()));
     static_cast<MiniHoneycomb *>(densityPreview_)
         ->setMetrics(d.cellSize, d.cellGap);
     emit densityChanged();
@@ -832,19 +918,17 @@ QWidget *PrefsWindow::buildDensityPane() {
   auto *preview = new MiniHoneycomb(previewCard);
   densityPreview_ = preview;
   previewLay->addWidget(preview);
-  auto *previewCaption =
-      new QLabel(QStringLiteral("Live preview · selected cell highlighted"),
-                 previewCard);
-  previewCaption->setObjectName(QStringLiteral("caption"));
-  previewCaption->setAlignment(Qt::AlignCenter);
-  previewLay->addWidget(previewCaption);
+  previewCaption_ =
+      new QLabel(tr("Live preview · selected cell highlighted"), previewCard);
+  previewCaption_->setObjectName(QStringLiteral("caption"));
+  previewCaption_->setAlignment(Qt::AlignCenter);
+  previewLay->addWidget(previewCaption_);
   lay->addWidget(previewCard);
 
-  auto *note = new QLabel(
-      QStringLiteral("When apps overflow the grid, a new row opens automatically."),
-      pane);
-  note->setObjectName(QStringLiteral("caption"));
-  lay->addWidget(note);
+  densityNote_ = new QLabel(
+      tr("When apps overflow the grid, a new row opens automatically."), pane);
+  densityNote_->setObjectName(QStringLiteral("caption"));
+  lay->addWidget(densityNote_);
   lay->addStretch();
   return pane;
 }
@@ -854,15 +938,15 @@ void PrefsWindow::refreshFromModel() {
   const int themeId = static_cast<int>(prefs_->appearance());
   if (auto *btn = themeGroup_->button(themeId))
     btn->setChecked(true);
+  if (auto *btn = languageGroup_->button(prefs_->language()))
+    btn->setChecked(true);
   const bool cellular = prefs_->styleId() == StyleId::Cellular;
   auto *hexTile = static_cast<StyleTile *>(styleTileHex_);
   auto *orbitTile = static_cast<StyleTile *>(styleTileOrbit_);
   hexTile->setCheckedState(cellular);
   orbitTile->setCheckedState(!cellular);
-  hexTile->setCaption(cellular ? QStringLiteral("Current")
-                               : QStringLiteral("Grid"));
-  orbitTile->setCaption(cellular ? QStringLiteral("Legacy")
-                                 : QStringLiteral("Current"));
+  hexTile->setCaption(cellular ? tr("Current") : tr("Grid"));
+  orbitTile->setCaption(cellular ? tr("Legacy") : tr("Current"));
   hotkeyEdit_->setKeySequence(prefs_->hotkey());
   static_cast<Toggle *>(loginToggle_)
       ->setChecked(macLaunchAtLoginEnabled(), false);
@@ -876,9 +960,9 @@ void PrefsWindow::refreshFromModel() {
   iconSizeSlider_->setValue(int(d.iconSize));
   for (auto *slider : {cellSizeSlider_, cellGapSlider_, iconSizeSlider_})
     slider->blockSignals(false);
-  cellSizeValue_->setText(QStringLiteral("%1 px").arg(int(d.cellSize)));
-  cellGapValue_->setText(QStringLiteral("%1 px").arg(int(d.cellGap)));
-  iconSizeValue_->setText(QStringLiteral("%1 px").arg(int(d.iconSize)));
+  cellSizeValue_->setText(tr("%1 px").arg(int(d.cellSize)));
+  cellGapValue_->setText(tr("%1 px").arg(int(d.cellGap)));
+  iconSizeValue_->setText(tr("%1 px").arg(int(d.iconSize)));
   static_cast<MiniHoneycomb *>(densityPreview_)
       ->setMetrics(d.cellSize, d.cellGap);
 
@@ -901,8 +985,8 @@ void PrefsWindow::reloadPinRows() {
     item->setData(Qt::UserRole, pin.id);
     item->setSizeHint(QSize(100, 46));
     pinList_->addItem(item);
-    auto *row =
-        new PinRowWidget(pin, icons_->iconForPath(pin.appPath), pinList_);
+    auto *row = new PinRowWidget(pin, icons_->iconForPath(pin.appPath),
+                                 tr("Remove from Locus"), pinList_);
     const QString id = pin.id;
     row->onRemove = [this, id] {
       pins_->removePin(id);
@@ -941,16 +1025,16 @@ void PrefsWindow::commitPinOrder() {
 void PrefsWindow::addApp() {
 #if defined(Q_OS_MAC)
   const QString startDir = QStringLiteral("/Applications");
-  const QString filter = QStringLiteral("Applications (*.app)");
+  const QString filter = tr("Applications (*.app)");
 #elif defined(Q_OS_WIN)
   const QString startDir = QStringLiteral("C:/Program Files");
-  const QString filter = QStringLiteral("Programs (*.exe)");
+  const QString filter = tr("Programs (*.exe)");
 #else
   const QString startDir = QDir::homePath();
-  const QString filter = QStringLiteral("All files (*)");
+  const QString filter = tr("All files (*)");
 #endif
   const QString path =
-      QFileDialog::getOpenFileName(this, QStringLiteral("Add App"), startDir, filter);
+      QFileDialog::getOpenFileName(this, tr("Add App"), startDir, filter);
   if (path.isEmpty())
     return;
   Pin pin;
