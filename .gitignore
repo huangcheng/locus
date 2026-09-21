@@ -1,0 +1,8 @@
+.ardot-screenshots/
+.DS_Store
+build/
+build2/
+cmake-build-*/
+*.user
+.idea/
+.vscode/
