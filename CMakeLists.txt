@@ -39,7 +39,8 @@ if(APPLE)
 endif()
 
 if(APPLE)
-  add_executable(locus MACOSX_BUNDLE src/main.cpp)
+  add_executable(locus MACOSX_BUNDLE src/main.cpp macos/AppIcon.icns)
+  set_source_files_properties(macos/AppIcon.icns PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
   set_target_properties(locus PROPERTIES
     OUTPUT_NAME "Locus"
     MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/macos/Info.plist"
@@ -47,6 +48,7 @@ if(APPLE)
     MACOSX_BUNDLE_GUI_IDENTIFIER "app.locus.launcher"
     MACOSX_BUNDLE_BUNDLE_VERSION "0.1.0"
     MACOSX_BUNDLE_SHORT_VERSION_STRING "0.1.0"
+    MACOSX_BUNDLE_ICON_FILE "AppIcon.icns"
   )
 else()
   add_executable(locus src/main.cpp)

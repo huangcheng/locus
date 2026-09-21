@@ -64,6 +64,9 @@ QVector<locus::Pin> seedMacApps() {
 
 int main(int argc, char *argv[]) {
   QApplication app(argc, argv);
+  // resources.qrc is compiled into the static locus_core lib; without this the
+  // linker drops it and QPixmap(":/...") loads fail silently.
+  Q_INIT_RESOURCE(resources);
   QCoreApplication::setOrganizationName(QStringLiteral("Locus"));
   QCoreApplication::setApplicationName(QStringLiteral("Locus"));
   app.setQuitOnLastWindowClosed(false);

@@ -6,3 +6,6 @@ cmake-build-*/
 *.user
 .idea/
 .vscode/
+# AI-generated exploration assets (not source)
+resources/review/
+resources/logo/
