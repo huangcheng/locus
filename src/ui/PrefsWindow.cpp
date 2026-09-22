@@ -6,6 +6,7 @@
 #include "platform/IconProvider.h"
 #include "platform/MacActivation.h"
 #include "platform/MacLoginItem.h"
+#include "ui/HoneycombMark.h"
 
 #include <QAbstractItemView>
 #include <QButtonGroup>
@@ -451,6 +452,29 @@ private:
   StyleId style_ = StyleId::Cellular;
   DensityPrefs d_;
   Palette pal_ = paletteFor(Appearance::Dark);
+};
+
+// The Locus mark drawn vector-crisp for the About card — same painter as
+// the Orbit hub and the tray icon, so the brand reads identically everywhere.
+class HoneycombLogo : public QWidget {
+public:
+  explicit HoneycombLogo(QWidget *parent = nullptr) : QWidget(parent) {
+    setFixedSize(96, 84);
+  }
+  void setDark(bool dark) {
+    dark_ = dark;
+    update();
+  }
+
+protected:
+  void paintEvent(QPaintEvent *) override {
+    QPainter p(this);
+    p.setRenderHint(QPainter::Antialiasing);
+    paintHoneycombMark(p, rect().center(), 14, dark_);
+  }
+
+private:
+  bool dark_ = true;
 };
 
 // Hotkey recorder rendering the shortcut as macOS keycap chips (⌃ Space);
@@ -939,6 +963,8 @@ void PrefsWindow::applyPalette() {
   static_cast<DensityPreview *>(densityPreview_)->setPaletteColors(p);
   static_cast<PinListWidget *>(pinList_)->setIndicatorColor(p.amber);
   static_cast<HotkeyField *>(hotkeyField_)->setPaletteColors(p);
+  static_cast<HoneycombLogo *>(aboutLogo_)
+      ->setDark(appearance_ == Appearance::Dark);
 }
 
 void PrefsWindow::updateDensityStrings() {
@@ -1018,11 +1044,9 @@ void PrefsWindow::retranslateUi() {
   aboutTitle_->setText(tr("About"));
   aboutVersion_->setText(tr("Version %1").arg(QStringLiteral(LOCUS_VERSION)));
   aboutTagline_->setText(tr("A radial launcher for your favorite apps."));
-  aboutLink_->setText(QStringLiteral(
-      "<a href=\"https://github.com/huangcheng/locus\" "
-      "style=\"color:#3A7BD5;text-decoration:none;\">"
-      "github.com/huangcheng/locus</a>"));
-  aboutCopyright_->setText(QStringLiteral("© 2026 huangcheng"));
+  aboutCopyright_->setText(QStringLiteral(
+      "© 2026 <a href=\"https://cheng.im\" "
+      "style=\"color:#3A7BD5;text-decoration:none;\">HUANG Cheng</a>"));
 
   // Tile captions, value labels and pin-row tooltips come from the model.
   refreshFromModel();
@@ -1339,16 +1363,19 @@ QWidget *PrefsWindow::buildAboutPane() {
   cardLay->setContentsMargins(24, 28, 24, 28);
   cardLay->setSpacing(8);
 
-  auto *logo = new QLabel(card);
-  logo->setPixmap(QPixmap(QStringLiteral(":/resources/logoTile.png"))
-                      .scaled(96, 96, Qt::KeepAspectRatio,
-                              Qt::SmoothTransformation));
-  logo->setAlignment(Qt::AlignCenter);
-  cardLay->addWidget(logo);
+  auto *logo = new HoneycombLogo(card);
+  aboutLogo_ = logo;
+  cardLay->addWidget(logo, 0, Qt::AlignCenter);
 
-  auto *name = new QLabel(QStringLiteral("Locus"), card);
+  // The app name doubles as the repo link — no separate URL line needed.
+  auto *name = new QLabel(
+      QStringLiteral("<a href=\"https://github.com/huangcheng/locus\" "
+                     "style=\"color:#3A7BD5;text-decoration:none;\">"
+                     "Locus</a>"),
+      card);
   name->setObjectName(QStringLiteral("paneTitle"));
   name->setAlignment(Qt::AlignCenter);
+  name->setOpenExternalLinks(true);
   cardLay->addWidget(name);
 
   aboutVersion_ = new QLabel(card);
@@ -1361,14 +1388,10 @@ QWidget *PrefsWindow::buildAboutPane() {
   aboutTagline_->setWordWrap(true);
   cardLay->addWidget(aboutTagline_);
 
-  aboutLink_ = new QLabel(card);
-  aboutLink_->setAlignment(Qt::AlignCenter);
-  aboutLink_->setOpenExternalLinks(true);
-  cardLay->addWidget(aboutLink_);
-
   aboutCopyright_ = new QLabel(card);
   aboutCopyright_->setObjectName(QStringLiteral("caption"));
   aboutCopyright_->setAlignment(Qt::AlignCenter);
+  aboutCopyright_->setOpenExternalLinks(true);
   cardLay->addWidget(aboutCopyright_);
 
   lay->addWidget(card);

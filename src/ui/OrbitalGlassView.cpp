@@ -2,6 +2,7 @@
 
 #include "core/HitTest.h"
 #include "platform/MacActivation.h"
+#include "ui/HoneycombMark.h"
 
 #include <QKeyEvent>
 #include <QMouseEvent>
@@ -436,36 +437,7 @@ void OrbitalGlassView::paintEvent(QPaintEvent *) {
     // Vector honeycomb mark matching the tray icon: pointy-top hexes in a
     // 2-3-2 cluster, amber center — drawn at the current scale, crisp at any
     // size and DPI, which no bitmap tile can be at 32px.
-    const auto drawMark = [&] {
-      const qreal r = 5.4;
-      const qreal sx = 1.732 * r + 1.6; // same-row hex spacing
-      const qreal sy = 1.5 * r + 1.2;   // row spacing
-      const auto hexPath = [&](const QPointF &c) {
-        QPainterPath path;
-        for (int i = 0; i < 6; ++i) {
-          const qreal a = qDegreesToRadians(90.0 + i * 60.0);
-          const QPointF pt(c.x() + r * qCos(a), c.y() + r * qSin(a));
-          if (i == 0)
-            path.moveTo(pt);
-          else
-            path.lineTo(pt);
-        }
-        path.closeSubpath();
-        return path;
-      };
-      p.setPen(Qt::NoPen);
-      p.setBrush(dark ? QColor(255, 255, 255, 225) : QColor(38, 38, 42));
-      const QPointF ring[6] = {QPointF(-sx, 0.0), QPointF(sx, 0.0),
-                               QPointF(-sx / 2.0, -sy), QPointF(sx / 2.0, -sy),
-                               QPointF(-sx / 2.0, sy), QPointF(sx / 2.0, sy)};
-      for (const QPointF &off : ring)
-        p.drawPath(hexPath(center + off));
-      QLinearGradient amber(center + QPointF(0, -r), center + QPointF(0, r));
-      amber.setColorAt(0.0, QColor(247, 176, 60));
-      amber.setColorAt(1.0, QColor(230, 130, 15));
-      p.setBrush(amber);
-      p.drawPath(hexPath(center));
-    };
+    const auto drawMark = [&] { paintHoneycombMark(p, center, 5.4, dark); };
 
     p.save();
     QPainterPath clipPath;

@@ -21,6 +21,7 @@ set(LOCUS_CORE_SOURCES
   src/ui/OrbitalGlassView.cpp
   src/ui/CellularGlassView.cpp
   src/ui/FanGlassView.cpp
+  src/ui/HoneycombMark.cpp
   src/ui/OverlayWindow.cpp
   src/ui/PrefsWindow.cpp
   src/platform/IconProvider.cpp

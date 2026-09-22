@@ -111,9 +111,9 @@ private:
 
   // About pane
   QLabel *aboutTitle_ = nullptr;
+  QWidget *aboutLogo_ = nullptr;
   QLabel *aboutVersion_ = nullptr;
   QLabel *aboutTagline_ = nullptr;
-  QLabel *aboutLink_ = nullptr;
   QLabel *aboutCopyright_ = nullptr;
 };
 
