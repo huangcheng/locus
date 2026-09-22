@@ -58,14 +58,25 @@ void Prefs::load() {
       settings_->value(QStringLiteral("density/cellGap"), 8.0).toDouble();
   density_.iconSize =
       settings_->value(QStringLiteral("density/iconSize"), 40.0).toDouble();
+#ifdef Q_OS_WIN
+  // Win+Space is reserved by Windows (input-layout switcher), so the
+  // cross-platform default lands on Ctrl+Alt+Space there.
+  const QString defaultHotkey = QStringLiteral("Ctrl+Alt+Space");
+#else
+  const QString defaultHotkey = QStringLiteral("Meta+Space");
+#endif
   const QString hotkeyStr =
-      settings_->value(QStringLiteral("hotkey"), QStringLiteral("Meta+Space"))
-          .toString();
+      settings_->value(QStringLiteral("hotkey"), defaultHotkey).toString();
   // "Ctrl+Space" was the pre-macOS-aware default (Qt::CTRL = Command there);
-  // migrate it to the real Control key. User-recorded shortcuts are untouched.
-  hotkey_ = QKeySequence(hotkeyStr == QStringLiteral("Ctrl+Space")
-                             ? QStringLiteral("Meta+Space")
-                             : hotkeyStr);
+  // migrate it to the real Control key. "Meta+Space" is the non-Windows
+  // default; migrate it too when it lands on Windows. User-recorded
+  // shortcuts are untouched.
+  hotkey_ = QKeySequence(
+      (hotkeyStr == QLatin1String("Ctrl+Space") ||
+       (hotkeyStr == QLatin1String("Meta+Space") &&
+        hotkeyStr != defaultHotkey))
+          ? defaultHotkey
+          : hotkeyStr);
   const int languageInt =
       settings_->value(QStringLiteral("language"), 0).toInt();
   language_ = (languageInt >= 0 && languageInt <= 2) ? languageInt : 0;

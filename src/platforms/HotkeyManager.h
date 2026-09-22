@@ -7,8 +7,8 @@ namespace locus {
 
 /// System-wide hotkey registration. Emits triggered() when the user presses
 /// the shortcut while any app is focused. macOS uses Carbon
-/// RegisterEventHotKey, which needs no accessibility permission; other
-/// platforms are stubbed until implemented.
+/// RegisterEventHotKey, which needs no accessibility permission; Windows
+/// uses RegisterHotKey; other platforms are stubbed until implemented.
 class HotkeyManager : public QObject {
   Q_OBJECT
 public:
