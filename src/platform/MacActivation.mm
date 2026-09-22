@@ -28,4 +28,10 @@ void macStyleSettingsWindow(QWidget *window) {
   nsWindow.movableByWindowBackground = YES;
 }
 
+bool macReduceMotion() {
+  if (@available(macOS 10.12, *))
+    return NSWorkspace.sharedWorkspace.accessibilityDisplayShouldReduceMotion;
+  return NO;
+}
+
 } // namespace locus

@@ -294,17 +294,29 @@ protected:
         p.drawPath(hexPath(spots[i].x(), spots[i].y(), w, h));
       }
     } else {
-      p.setPen(QPen(pal_.secondary, 1.2));
+      const QPointF center(cx, top + 18);
+      QColor track = pal_.text;
+      track.setAlpha(40);
+      QPen trackPen(track, 3);
+      p.setPen(trackPen);
       p.setBrush(Qt::NoBrush);
-      p.drawEllipse(QPointF(cx, top + 18), 13, 13);
+      p.drawEllipse(center, 14, 14);
+      QPen arcPen(pal_.amber, 3);
+      arcPen.setCapStyle(Qt::RoundCap);
+      p.setPen(arcPen);
+      p.drawArc(QRectF(center.x() - 14, center.y() - 14, 28, 28), -31 * 16,
+                63 * 16);
       p.setPen(Qt::NoPen);
-      p.setBrush(pal_.secondary);
-      p.drawEllipse(QPointF(cx, top + 18), 2.5, 2.5);
-      for (int i = 0; i < 6; ++i) {
+      p.setBrush(pal_.amber);
+      p.drawEllipse(center, 3, 3);
+      QColor bead = pal_.text;
+      bead.setAlpha(140);
+      p.setBrush(bead);
+      for (int i = 1; i < 6; ++i) {
         const qreal a = M_PI * i / 3.0;
-        p.setBrush(i == 0 ? pal_.amber : QColor(pal_.secondary));
-        p.drawEllipse(QPointF(cx + std::cos(a) * 13, top + 18 + std::sin(a) * 13),
-                      2, 2);
+        p.drawEllipse(
+            QPointF(center.x() + std::cos(a) * 14, center.y() + std::sin(a) * 14),
+            2, 2);
       }
     }
 

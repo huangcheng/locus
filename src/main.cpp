@@ -134,6 +134,13 @@ int main(int argc, char *argv[]) {
         strategy->build(pinStore.pins(), session.focusedId(), prefs.density());
     view->setScene(scene);
     overlay.resizeToContent();
+    // Only while shown: a hidden overlay still carries its stale frame (and
+    // possibly the wrong screen/scale), which is how the glass once landed
+    // as a 2x giant on the wrong monitor. showMenuAt re-installs post-show.
+    if (orbitalView && overlay.isVisible())
+      locus::macInstallCrystalBackdrop(&overlay, orbitalView->discRect(),
+                                       resolveAppearance() ==
+                                           locus::Appearance::Dark);
   };
 
   auto applyIcons = [&] {
@@ -154,6 +161,12 @@ int main(int argc, char *argv[]) {
     if (cellularView)
       cellularView->playOpenAnimation();
     overlay.showAt(anchor);
+    // The window is now at its final position/screen/size — compute the
+    // glass against this frame, never the stale pre-show one.
+    if (orbitalView)
+      locus::macInstallCrystalBackdrop(&overlay, orbitalView->discRect(),
+                                       resolveAppearance() ==
+                                           locus::Appearance::Dark);
     locus::macActivateApplication();
   };
 
@@ -218,12 +231,6 @@ int main(int argc, char *argv[]) {
       orbitalView = ov;
       view = ov;
       wireView(ov);
-      QObject::connect(ov, &locus::OrbitalGlassView::rotationDelta, &app,
-                       [&](qreal delta) {
-                         orbitalStrategy.setRotationRadians(
-                             orbitalStrategy.rotationRadians() + delta);
-                         rebuild();
-                       });
     }
     applyIcons();
   };
@@ -234,6 +241,8 @@ int main(int argc, char *argv[]) {
     createView();
     overlay.setContent(view->widget());
     locus::macMakeOverlayLiveWhenInactive(&overlay, view->widget());
+    if (!orbitalView) // cellular paints its own glass; drop the orbit blur
+      locus::macInstallCrystalBackdrop(&overlay, QRectF(), false);
     rebuild();
   };
   applyStyle();
@@ -253,8 +262,11 @@ int main(int argc, char *argv[]) {
     const locus::Appearance resolved = resolveAppearance();
     if (cellularView)
       cellularView->setAppearance(resolved);
-    if (orbitalView)
+    if (orbitalView) {
       orbitalView->setAppearance(resolved);
+      locus::macInstallCrystalBackdrop(&overlay, orbitalView->discRect(),
+                                       resolved == locus::Appearance::Dark);
+    }
     prefsWindow.setResolvedAppearance(resolved);
   };
   QObject::connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged,

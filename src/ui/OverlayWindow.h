@@ -13,6 +13,9 @@ public:
   void setContent(QWidget *content);
   void resizeToContent();
 
+protected:
+  void hideEvent(QHideEvent *event) override;
+
 private:
   QWidget *content_ = nullptr;
 };

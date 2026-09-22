@@ -3,5 +3,6 @@
   <qresource prefix="/">
     <file>resources/trayTemplate.png</file>
     <file>resources/trayTemplate@2x.png</file>
+    <file>resources/logoTile.png</file>
   </qresource>
 </RCC>

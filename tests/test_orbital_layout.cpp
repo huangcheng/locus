@@ -20,62 +20,82 @@ QVector<locus::Pin> makePins(int n) {
   return pins;
 }
 
+int itemCount(const locus::SceneModel &scene) {
+  int n = 0;
+  for (const auto &it : scene.items)
+    if (it.role == locus::ItemRole::Item)
+      ++n;
+  return n;
+}
+
+int trackCount(const locus::SceneModel &scene) {
+  int n = 0;
+  for (const auto &dec : scene.decorations)
+    if (dec.styleKey == QLatin1String("orbit.track"))
+      ++n;
+  return n;
+}
+
+qreal discWidth(const locus::SceneModel &scene) {
+  for (const auto &dec : scene.decorations)
+    if (dec.styleKey == QLatin1String("orbit.disc"))
+      return dec.bounds.width();
+  return 0;
+}
+
 } // namespace
 
 class OrbitalTest : public QObject {
   Q_OBJECT
 private slots:
-  void eightPinsOneRing() {
+  void sixPinsOneTrack() {
     locus::OrbitalLayoutStrategy s;
     locus::DensityPrefs d;
-    auto pins = makePins(8);
+    auto pins = makePins(6);
     auto scene = s.build(pins, pins[0].id, d);
-    int items = 0;
-    for (const auto &it : scene.items)
-      if (it.role == locus::ItemRole::Item)
-        ++items;
-    QCOMPARE(items, 8);
-    QVERIFY(std::any_of(
-        scene.decorations.begin(), scene.decorations.end(), [](const auto &dec) {
-          return dec.styleKey == QLatin1String("orbital.inner");
-        }));
-    QVERIFY(std::none_of(
-        scene.decorations.begin(), scene.decorations.end(), [](const auto &dec) {
-          return dec.styleKey == QLatin1String("orbital.outer");
-        }));
-    QVERIFY(std::any_of(
-        scene.decorations.begin(), scene.decorations.end(), [](const auto &dec) {
-          return dec.styleKey == QLatin1String("hover.well");
-        }));
+    QCOMPARE(itemCount(scene), 6);
+    QCOMPARE(trackCount(scene), 1);
+    QCOMPARE(scene.hub.focusedId, pins[0].id);
     QCOMPARE(scene.hub.selectedTitle, pins[0].label);
+    // First pin sits at the top of the inner track (radius 88).
+    const QRectF disc = scene.decorations.first().bounds;
+    const QPointF c = scene.items.first().bounds.center();
+    QVERIFY(qAbs(c.x() - disc.center().x()) < 0.01);
+    QVERIFY(qAbs(disc.center().y() - c.y() - 88.0) < 0.01);
   }
 
-  void twentyPinsTwoRings() {
+  void ninePinsTwoTracks() {
     locus::OrbitalLayoutStrategy s;
     locus::DensityPrefs d;
-    auto pins = makePins(20);
-    auto scene = s.build(pins, {}, d);
-    int items = 0;
-    for (const auto &it : scene.items)
-      if (it.role == locus::ItemRole::Item)
-        ++items;
-    QCOMPARE(items, 20);
-    QVERIFY(std::any_of(
-        scene.decorations.begin(), scene.decorations.end(), [](const auto &dec) {
-          return dec.styleKey == QLatin1String("orbital.outer");
-        }));
+    auto scene = s.build(makePins(9), {}, d);
+    QCOMPARE(itemCount(scene), 9);
+    QCOMPARE(trackCount(scene), 2);
   }
 
-  void rotationChangesPositions() {
+  void twentyPinsThreeTracks() {
     locus::OrbitalLayoutStrategy s;
-    auto pins = makePins(8);
     locus::DensityPrefs d;
-    auto a = s.build(pins, {}, d);
-    s.setRotationRadians(M_PI / 4);
-    auto b = s.build(pins, {}, d);
-    const QPointF ca = a.items[0].bounds.center();
-    const QPointF cb = b.items[0].bounds.center();
-    QVERIFY(std::hypot(ca.x() - cb.x(), ca.y() - cb.y()) > 1.0);
+    auto scene = s.build(makePins(20), {}, d);
+    QCOMPARE(itemCount(scene), 20);
+    QCOMPARE(trackCount(scene), 3);
+  }
+
+  void discGrowsWithTracks() {
+    locus::OrbitalLayoutStrategy s;
+    locus::DensityPrefs d;
+    const qreal oneTrack = discWidth(s.build(makePins(6), {}, d));
+    const qreal threeTracks = discWidth(s.build(makePins(20), {}, d));
+    QVERIFY(oneTrack > 0);
+    QVERIFY(threeTracks > oneTrack);
+  }
+
+  void emptyPinsHubOnly() {
+    locus::OrbitalLayoutStrategy s;
+    locus::DensityPrefs d;
+    auto scene = s.build({}, {}, d);
+    QCOMPARE(itemCount(scene), 0);
+    QCOMPARE(trackCount(scene), 0);
+    QVERIFY(discWidth(scene) > 0); // hub-sized disc still renders
   }
 };
 

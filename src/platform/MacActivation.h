@@ -11,4 +11,7 @@ void macActivateApplication();
 /// title bar, content extending under the traffic lights, background-draggable.
 void macStyleSettingsWindow(QWidget *window);
 
+/// True when the user enabled macOS "Reduce Motion" — animations should snap.
+bool macReduceMotion();
+
 } // namespace locus
