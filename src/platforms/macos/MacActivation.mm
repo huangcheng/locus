@@ -1,4 +1,4 @@
-#include "platform/MacActivation.h"
+#include "platforms/macos/MacActivation.h"
 
 #include <QWidget>
 

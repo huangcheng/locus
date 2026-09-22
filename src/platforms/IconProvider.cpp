@@ -1,10 +1,10 @@
-#include "platform/IconProvider.h"
+#include "platforms/IconProvider.h"
 
 #include <QFileIconProvider>
 #include <QFileInfo>
 
 #ifdef Q_OS_MAC
-#include "platform/MacIcon.h"
+#include "platforms/macos/MacIcon.h"
 #endif
 
 namespace locus {

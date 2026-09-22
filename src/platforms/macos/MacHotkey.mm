@@ -1,4 +1,4 @@
-#include "platform/HotkeyManager.h"
+#include "platforms/HotkeyManager.h"
 
 #import <Carbon/Carbon.h>
 

@@ -24,18 +24,18 @@ set(LOCUS_CORE_SOURCES
   src/ui/HoneycombMark.cpp
   src/ui/OverlayWindow.cpp
   src/ui/PrefsWindow.cpp
-  src/platform/IconProvider.cpp
-  src/platform/AppLauncher.cpp
-  src/platform/TrayController.cpp
-  src/platform/HotkeyManager.h
+  src/platforms/IconProvider.cpp
+  src/platforms/AppLauncher.cpp
+  src/platforms/TrayController.cpp
+  src/platforms/HotkeyManager.h
   resources.qrc
 )
 
 if(APPLE)
   enable_language(OBJCXX)
-  list(APPEND LOCUS_CORE_SOURCES src/platform/MacActivation.mm src/platform/MacIcon.mm src/platform/MacLoginItem.mm src/platform/MacOverlay.mm src/platform/MacHotkey.mm src/platform/CrystalBackdrop_mac.mm)
+  list(APPEND LOCUS_CORE_SOURCES src/platforms/macos/MacActivation.mm src/platforms/macos/MacIcon.mm src/platforms/macos/MacLoginItem.mm src/platforms/macos/MacOverlay.mm src/platforms/macos/MacHotkey.mm src/platforms/macos/CrystalBackdrop_mac.mm)
 else()
-  list(APPEND LOCUS_CORE_SOURCES src/platform/MacStubs.cpp src/platform/HotkeyManagerStub.cpp src/platform/CrystalBackdrop_stub.cpp)
+  list(APPEND LOCUS_CORE_SOURCES src/platforms/stub/MacStubs.cpp src/platforms/stub/CrystalBackdrop_stub.cpp src/platforms/stub/HotkeyManagerStub.cpp)
 endif()
 
 add_library(locus_core STATIC ${LOCUS_CORE_SOURCES})

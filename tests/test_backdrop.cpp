@@ -1,4 +1,4 @@
-#include "platform/CrystalBackdrop.h"
+#include "platforms/CrystalBackdrop.h"
 #include "ui/OrbitalGlassView.h"
 
 #include <QtTest>

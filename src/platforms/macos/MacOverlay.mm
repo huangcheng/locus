@@ -1,4 +1,4 @@
-#include "platform/MacOverlay.h"
+#include "platforms/macos/MacOverlay.h"
 
 #import <AppKit/AppKit.h>
 

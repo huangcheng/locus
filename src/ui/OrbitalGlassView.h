@@ -2,7 +2,7 @@
 
 #include "core/MenuView.h"
 #include "core/Types.h"
-#include "platform/CrystalBackdrop.h"
+#include "platforms/CrystalBackdrop.h"
 
 #include <QElapsedTimer>
 #include <QHash>

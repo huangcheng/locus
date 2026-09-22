@@ -1,6 +1,6 @@
 #include "ui/OverlayWindow.h"
 
-#include "platform/CrystalBackdrop.h"
+#include "platforms/CrystalBackdrop.h"
 
 #include <QGuiApplication>
 #include <QScreen>

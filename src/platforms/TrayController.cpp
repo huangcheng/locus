@@ -1,4 +1,4 @@
-#include "platform/TrayController.h"
+#include "platforms/TrayController.h"
 
 #include <QAction>
 #include <QApplication>

@@ -1,7 +1,7 @@
 #include "ui/OrbitalGlassView.h"
 
 #include "core/HitTest.h"
-#include "platform/MacActivation.h"
+#include "platforms/macos/MacActivation.h"
 #include "ui/HoneycombMark.h"
 
 #include <QKeyEvent>

@@ -3,9 +3,9 @@
 #include "core/Pin.h"
 #include "core/PinStore.h"
 #include "core/Prefs.h"
-#include "platform/IconProvider.h"
-#include "platform/MacActivation.h"
-#include "platform/MacLoginItem.h"
+#include "platforms/IconProvider.h"
+#include "platforms/macos/MacActivation.h"
+#include "platforms/macos/MacLoginItem.h"
 #include "ui/HoneycombMark.h"
 
 #include <QAbstractItemView>

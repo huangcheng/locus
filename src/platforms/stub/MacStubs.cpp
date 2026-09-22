@@ -1,6 +1,6 @@
-#include "MacActivation.h"
-#include "MacLoginItem.h"
-#include "MacOverlay.h"
+#include "platforms/macos/MacActivation.h"
+#include "platforms/macos/MacLoginItem.h"
+#include "platforms/macos/MacOverlay.h"
 
 namespace locus {
 

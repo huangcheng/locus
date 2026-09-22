@@ -1,4 +1,4 @@
-#include "platform/AppLauncher.h"
+#include "platforms/AppLauncher.h"
 
 #include <QDesktopServices>
 #include <QUrl>

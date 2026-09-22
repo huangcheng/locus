@@ -1,4 +1,4 @@
-#include "platform/MacIcon.h"
+#include "platforms/macos/MacIcon.h"
 
 #import <AppKit/AppKit.h>
 

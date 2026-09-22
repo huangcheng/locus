@@ -1,4 +1,4 @@
-#include "platform/MacLoginItem.h"
+#include "platforms/macos/MacLoginItem.h"
 
 #import <ServiceManagement/ServiceManagement.h>
 

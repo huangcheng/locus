@@ -1,4 +1,4 @@
-#include "platform/CrystalBackdrop.h"
+#include "platforms/CrystalBackdrop.h"
 
 namespace locus {
 
