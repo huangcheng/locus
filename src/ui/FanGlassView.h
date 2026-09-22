@@ -46,7 +46,6 @@ protected:
 private:
   void setHoverTarget(const QString &id);
   void advanceAnimation();
-  QString labelFor(const QString &id) const;
 
   SceneModel scene_;
   Appearance appearance_ = Appearance::Dark;

@@ -1,7 +1,7 @@
 #include "ui/FanGlassView.h"
 
 #include "core/HitTest.h"
-#include "platform/MacActivation.h"
+#include "platforms/macos/MacActivation.h"
 
 #include <QKeyEvent>
 #include <QMouseEvent>
@@ -18,10 +18,6 @@ namespace {
 constexpr qreal kEmphasisInRate = 18.0;
 constexpr qreal kEmphasisOutRate = 24.0;
 constexpr qreal kEpsilon = 0.004;
-
-QString elideLabel(const QFontMetrics &fm, const QString &text, qreal width) {
-  return fm.elidedText(text, Qt::ElideRight, int(width));
-}
 
 } // namespace
 
@@ -55,15 +51,6 @@ void FanGlassView::setAppearance(Appearance appearance) {
 void FanGlassView::setIcon(const QString &pinId, const QIcon &icon) {
   icons_.insert(pinId, icon);
   update();
-}
-
-QString FanGlassView::labelFor(const QString &id) const {
-  for (const auto &item : scene_.items)
-    if (item.id == id && !item.label.isEmpty())
-      return item.label;
-  if (id == scene_.hub.focusedId && !scene_.hub.selectedTitle.isEmpty())
-    return scene_.hub.selectedTitle;
-  return id;
 }
 
 void FanGlassView::setHoverTarget(const QString &id) {
@@ -168,7 +155,7 @@ void FanGlassView::paintEvent(QPaintEvent *) {
       p.restore();
     }
 
-    // Dark matches Ardot Fan: frosted glass + muted label; selected = gold rim.
+    // Dark matches Ardot Fan: frosted glass; selected = gold rim.
     QColor fill;
     QColor border;
     if (faceUp) {
@@ -190,9 +177,10 @@ void FanGlassView::paintEvent(QPaintEvent *) {
 
     const QIcon icon = icons_.value(item->id);
     if (faceUp) {
+      // Icon-only face: centered now that the caption is gone.
       const qreal iconBox = qMin(iconSize_ * 1.15, card.width() * 0.6);
-      const QRectF iconRect((card.width() - iconBox) / 2.0, 18.0, iconBox,
-                            iconBox);
+      const QRectF iconRect((card.width() - iconBox) / 2.0,
+                            (card.height() - iconBox) / 2.0, iconBox, iconBox);
       QPainterPath iconClip;
       iconClip.addRoundedRect(iconRect, 11.0, 11.0);
       p.save();
@@ -202,16 +190,6 @@ void FanGlassView::paintEvent(QPaintEvent *) {
       else
         p.fillRect(iconRect, dark ? QColor(255, 255, 255, 28) : QColor(0, 0, 0, 16));
       p.restore();
-
-      QFont font = p.font();
-      font.setPixelSize(11);
-      font.setWeight(QFont::DemiBold);
-      p.setFont(font);
-      p.setPen(dark ? QColor(245, 214, 138) : QColor(92, 64, 14));
-      const QRectF labelRect(8, 72, card.width() - 16, 20);
-      p.drawText(labelRect, Qt::AlignHCenter | Qt::AlignVCenter,
-                 elideLabel(QFontMetrics(font), labelFor(item->id),
-                            labelRect.width()));
     } else {
       // Compact index corner — matches a playing-card rank pip.
       const QRectF iconRect(7, 9, 26, 26);
