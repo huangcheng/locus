@@ -9,3 +9,5 @@ cmake-build-*/
 # AI-generated exploration assets (not source)
 resources/review/
 resources/logo/
+
+.worktrees/

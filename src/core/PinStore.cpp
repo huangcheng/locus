@@ -1,5 +1,7 @@
 #include "core/PinStore.h"
 
+#include <QDir>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -62,6 +64,24 @@ void PinStore::load() {
     if (!pin.id.isEmpty())
       pins_.push_back(pin);
   }
+  // Repair pins added with bundle paths that ended in a slash: their labels
+  // came out empty. Clean the paths and backfill labels, then persist.
+  bool dirty = false;
+  for (auto &pin : pins_) {
+    const QString clean = QDir::cleanPath(pin.appPath);
+    if (clean != pin.appPath) {
+      pin.appPath = clean;
+      if (pin.iconKey.endsWith(QLatin1Char('/')))
+        pin.iconKey = clean;
+      dirty = true;
+    }
+    if (pin.label.isEmpty()) {
+      pin.label = QFileInfo(clean).completeBaseName();
+      dirty = true;
+    }
+  }
+  if (dirty)
+    save();
 }
 
 void PinStore::save() const {

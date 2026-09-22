@@ -68,8 +68,8 @@
         <translation>网格</translation>
     </message>
     <message>
-        <source>Legacy</source>
-        <translation>旧版</translation>
+        <source>Ring</source>
+        <translation>环形</translation>
     </message>
     <message>
         <source>Programs (*.exe)</source>

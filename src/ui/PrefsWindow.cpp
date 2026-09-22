@@ -1237,7 +1237,7 @@ void PrefsWindow::refreshFromModel() {
   hexTile->setCheckedState(cellular);
   orbitTile->setCheckedState(!cellular);
   hexTile->setCaption(cellular ? tr("Current") : tr("Grid"));
-  orbitTile->setCaption(cellular ? tr("Legacy") : tr("Current"));
+  orbitTile->setCaption(cellular ? tr("Ring") : tr("Current"));
   static_cast<HotkeyField *>(hotkeyField_)->setSequence(prefs_->hotkey());
   static_cast<Toggle *>(loginToggle_)
       ->setChecked(macLaunchAtLoginEnabled(), false);
@@ -1328,11 +1328,14 @@ void PrefsWindow::addApp() {
       QFileDialog::getOpenFileName(this, tr("Add App"), startDir, filter);
   if (path.isEmpty())
     return;
+  // The native dialog returns bundle paths with a trailing slash, and
+  // QFileInfo::completeBaseName() on those is empty — clean first.
+  const QString clean = QDir::cleanPath(path);
   Pin pin;
   pin.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
-  pin.appPath = path;
-  pin.label = QFileInfo(path).completeBaseName();
-  pin.iconKey = path;
+  pin.appPath = clean;
+  pin.label = QFileInfo(clean).completeBaseName();
+  pin.iconKey = clean;
   pins_->addPin(pin);
   reloadPinRows();
   emit pinsChanged();
