@@ -38,6 +38,9 @@
 #include <QVariantAnimation>
 #include <QVBoxLayout>
 
+#include <QtMath>
+#include <cmath>
+
 namespace locus {
 namespace {
 
@@ -236,7 +239,7 @@ private:
 
 class StyleTile : public QFrame {
 public:
-  enum Kind { Honeycomb, Orbit };
+  enum Kind { Honeycomb, Orbit, Fan };
 
   StyleTile(Kind kind, const QString &title, QWidget *parent = nullptr)
       : QFrame(parent), kind_(kind), title_(title) {
@@ -292,6 +295,25 @@ protected:
         p.setPen(Qt::NoPen);
         p.setBrush(i == 3 ? pal_.amber : cellColor);
         p.drawPath(hexPath(spots[i].x(), spots[i].y(), w, h));
+      }
+    } else if (kind_ == Fan) {
+      const QPointF pivot(cx, top + 36);
+      p.setPen(Qt::NoPen);
+      p.setBrush(pal_.amber);
+      p.drawEllipse(pivot, 2.5, 2.5);
+      for (int i = -2; i <= 2; ++i) {
+        const qreal tilt = i * 14.0;
+        const qreal orbit = -M_PI / 2.0 + qDegreesToRadians(tilt);
+        const qreal R = 22.0;
+        const QPointF c(pivot.x() + std::cos(orbit) * R,
+                        pivot.y() + std::sin(orbit) * R);
+        p.save();
+        p.translate(c);
+        p.rotate(tilt);
+        p.setBrush(i == 0 ? pal_.amber : cellColor);
+        p.setPen(Qt::NoPen);
+        p.drawRoundedRect(QRectF(-5, -7, 10, 14), 2.5, 2.5);
+        p.restore();
       }
     } else {
       const QPointF center(cx, top + 18);
@@ -882,6 +904,7 @@ void PrefsWindow::applyPalette() {
   static_cast<Toggle *>(loginToggle_)->setColors(p);
   static_cast<StyleTile *>(styleTileHex_)->setPaletteColors(p);
   static_cast<StyleTile *>(styleTileOrbit_)->setPaletteColors(p);
+  static_cast<StyleTile *>(styleTileFan_)->setPaletteColors(p);
   static_cast<MiniHoneycomb *>(densityPreview_)->setPaletteColors(p);
   static_cast<PinListWidget *>(pinList_)->setIndicatorColor(p.amber);
   static_cast<HotkeyField *>(hotkeyField_)->setPaletteColors(p);
@@ -910,6 +933,7 @@ void PrefsWindow::retranslateUi() {
   styleLabel_->setText(tr("Menu style"));
   static_cast<StyleTile *>(styleTileHex_)->setTitle(tr("Honeycomb"));
   static_cast<StyleTile *>(styleTileOrbit_)->setTitle(tr("Orbit"));
+  static_cast<StyleTile *>(styleTileFan_)->setTitle(tr("Fan"));
   hotkeyLabel_->setText(tr("Global hotkey"));
   static_cast<HotkeyField *>(hotkeyField_)
       ->setPrompts(tr("Press shortcut…"), tr("Not set"));
@@ -1023,8 +1047,10 @@ QWidget *PrefsWindow::buildGeneralPane() {
   auto *hexTile = new StyleTile(StyleTile::Honeycomb, tr("Honeycomb"),
                                 styleCard);
   auto *orbitTile = new StyleTile(StyleTile::Orbit, tr("Orbit"), styleCard);
+  auto *fanTile = new StyleTile(StyleTile::Fan, tr("Fan"), styleCard);
   styleTileHex_ = hexTile;
   styleTileOrbit_ = orbitTile;
+  styleTileFan_ = fanTile;
   hexTile->onClicked = [this] {
     if (prefs_->styleId() == StyleId::Cellular)
       return;
@@ -1039,8 +1065,16 @@ QWidget *PrefsWindow::buildGeneralPane() {
     refreshFromModel();
     emit styleChanged();
   };
+  fanTile->onClicked = [this] {
+    if (prefs_->styleId() == StyleId::Fan)
+      return;
+    prefs_->setStyleId(StyleId::Fan);
+    refreshFromModel();
+    emit styleChanged();
+  };
   tiles->addWidget(hexTile);
   tiles->addWidget(orbitTile);
+  tiles->addWidget(fanTile);
   styleLay->addLayout(tiles);
   lay->addWidget(styleCard);
 
@@ -1231,13 +1265,28 @@ void PrefsWindow::refreshFromModel() {
     btn->setChecked(true);
   if (auto *btn = languageGroup_->button(prefs_->language()))
     btn->setChecked(true);
-  const bool cellular = prefs_->styleId() == StyleId::Cellular;
+  const StyleId style = prefs_->styleId();
   auto *hexTile = static_cast<StyleTile *>(styleTileHex_);
   auto *orbitTile = static_cast<StyleTile *>(styleTileOrbit_);
+<<<<<<< HEAD
   hexTile->setCheckedState(cellular);
   orbitTile->setCheckedState(!cellular);
   hexTile->setCaption(cellular ? tr("Current") : tr("Grid"));
   orbitTile->setCaption(cellular ? tr("Ring") : tr("Current"));
+||||||| parent of cd07657 (Add Fan menu style: stacked card-hand launcher skin.)
+  hexTile->setCheckedState(cellular);
+  orbitTile->setCheckedState(!cellular);
+  hexTile->setCaption(cellular ? tr("Current") : tr("Grid"));
+  orbitTile->setCaption(cellular ? tr("Legacy") : tr("Current"));
+=======
+  auto *fanTile = static_cast<StyleTile *>(styleTileFan_);
+  hexTile->setCheckedState(style == StyleId::Cellular);
+  orbitTile->setCheckedState(style == StyleId::Orbital);
+  fanTile->setCheckedState(style == StyleId::Fan);
+  hexTile->setCaption(style == StyleId::Cellular ? tr("Current") : tr("Grid"));
+  orbitTile->setCaption(style == StyleId::Orbital ? tr("Current") : tr("Rings"));
+  fanTile->setCaption(style == StyleId::Fan ? tr("Current") : tr("Arc"));
+>>>>>>> cd07657 (Add Fan menu style: stacked card-hand launcher skin.)
   static_cast<HotkeyField *>(hotkeyField_)->setSequence(prefs_->hotkey());
   static_cast<Toggle *>(loginToggle_)
       ->setChecked(macLaunchAtLoginEnabled(), false);

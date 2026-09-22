@@ -3,6 +3,7 @@
 #include "core/Prefs.h"
 #include "core/SessionController.h"
 #include "layout/CellularLayoutStrategy.h"
+#include "layout/FanLayoutStrategy.h"
 #include "layout/OrbitalLayoutStrategy.h"
 #include "platform/AppLauncher.h"
 #include "platform/HotkeyManager.h"
@@ -11,6 +12,7 @@
 #include "platform/MacOverlay.h"
 #include "platform/TrayController.h"
 #include "ui/CellularGlassView.h"
+#include "ui/FanGlassView.h"
 #include "ui/OrbitalGlassView.h"
 #include "ui/OverlayWindow.h"
 #include "ui/PrefsWindow.h"
@@ -117,21 +119,32 @@ int main(int argc, char *argv[]) {
 
   locus::CellularLayoutStrategy cellularStrategy;
   locus::OrbitalLayoutStrategy orbitalStrategy;
+  locus::FanLayoutStrategy fanStrategy;
 
   locus::CellularGlassView *cellularView = nullptr;
   locus::OrbitalGlassView *orbitalView = nullptr;
+  locus::FanGlassView *fanView = nullptr;
   locus::MenuView *view = nullptr;
 
   // Placeholder content; applyStyle() swaps in the real view below.
   locus::OverlayWindow overlay(new QWidget);
 
+  auto pickStrategy = [&]() -> locus::LayoutStrategy * {
+    switch (prefs.styleId()) {
+    case locus::StyleId::Cellular:
+      return &cellularStrategy;
+    case locus::StyleId::Fan:
+      return &fanStrategy;
+    case locus::StyleId::Orbital:
+    case locus::StyleId::Pie:
+      return &orbitalStrategy;
+    }
+    return &orbitalStrategy;
+  };
+
   auto rebuild = [&] {
-    locus::LayoutStrategy *strategy =
-        prefs.styleId() == locus::StyleId::Cellular
-            ? static_cast<locus::LayoutStrategy *>(&cellularStrategy)
-            : static_cast<locus::LayoutStrategy *>(&orbitalStrategy);
-    const auto scene =
-        strategy->build(pinStore.pins(), session.focusedId(), prefs.density());
+    const auto scene = pickStrategy()->build(pinStore.pins(), session.focusedId(),
+                                             prefs.density());
     view->setScene(scene);
     overlay.resizeToContent();
     // Only while shown: a hidden overlay still carries its stale frame (and
@@ -150,6 +163,8 @@ int main(int argc, char *argv[]) {
         cellularView->setIcon(pin.id, icon);
       if (orbitalView)
         orbitalView->setIcon(pin.id, icon);
+      if (fanView)
+        fanView->setIcon(pin.id, icon);
     }
   };
 
@@ -216,18 +231,26 @@ int main(int argc, char *argv[]) {
   auto createView = [&] {
     locus::CellularGlassView *cv = nullptr;
     locus::OrbitalGlassView *ov = nullptr;
+    locus::FanGlassView *fv = nullptr;
+    cellularView = nullptr;
+    orbitalView = nullptr;
+    fanView = nullptr;
     if (prefs.styleId() == locus::StyleId::Cellular) {
       cv = new locus::CellularGlassView;
       cv->setAppearance(resolveAppearance());
       cv->setIconSize(prefs.density().iconSize);
       cellularView = cv;
-      orbitalView = nullptr;
       view = cv;
       wireView(cv);
+    } else if (prefs.styleId() == locus::StyleId::Fan) {
+      fv = new locus::FanGlassView;
+      fv->setAppearance(resolveAppearance());
+      fanView = fv;
+      view = fv;
+      wireView(fv);
     } else {
       ov = new locus::OrbitalGlassView;
       ov->setAppearance(resolveAppearance());
-      cellularView = nullptr;
       orbitalView = ov;
       view = ov;
       wireView(ov);
@@ -241,7 +264,7 @@ int main(int argc, char *argv[]) {
     createView();
     overlay.setContent(view->widget());
     locus::macMakeOverlayLiveWhenInactive(&overlay, view->widget());
-    if (!orbitalView) // cellular paints its own glass; drop the orbit blur
+    if (!orbitalView) // only Orbit uses the crystal disc backdrop
       locus::macInstallCrystalBackdrop(&overlay, QRectF(), false);
     rebuild();
   };
@@ -262,6 +285,8 @@ int main(int argc, char *argv[]) {
     const locus::Appearance resolved = resolveAppearance();
     if (cellularView)
       cellularView->setAppearance(resolved);
+    if (fanView)
+      fanView->setAppearance(resolved);
     if (orbitalView) {
       orbitalView->setAppearance(resolved);
       locus::macInstallCrystalBackdrop(&overlay, orbitalView->discRect(),

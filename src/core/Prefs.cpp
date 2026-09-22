@@ -42,7 +42,7 @@ void Prefs::load() {
   const int styleInt =
       settings_->value(QStringLiteral("style"), static_cast<int>(StyleId::Cellular))
           .toInt();
-  styleId_ = (styleInt >= 0 && styleInt <= static_cast<int>(StyleId::Pie))
+  styleId_ = (styleInt >= 0 && styleInt <= static_cast<int>(StyleId::Fan))
                  ? static_cast<StyleId>(styleInt)
                  : StyleId::Cellular;
   density_.minIconSize =

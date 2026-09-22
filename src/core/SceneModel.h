@@ -15,6 +15,7 @@ enum class DecorationKind { Ellipse, Path };
 
 struct PlacedItem {
   QString id;
+  QString label; // optional; Fan paints it under the icon
   QRectF bounds;
   int z = 0;
   ItemRole role = ItemRole::Item;

@@ -17,8 +17,10 @@ set(LOCUS_CORE_SOURCES
   src/core/Prefs.cpp
   src/layout/OrbitalLayoutStrategy.cpp
   src/layout/CellularLayoutStrategy.cpp
+  src/layout/FanLayoutStrategy.cpp
   src/ui/OrbitalGlassView.cpp
   src/ui/CellularGlassView.cpp
+  src/ui/FanGlassView.cpp
   src/ui/OverlayWindow.cpp
   src/ui/PrefsWindow.cpp
   src/platform/IconProvider.cpp
@@ -79,6 +81,7 @@ endfunction()
 locus_add_test(test_smoke tests/test_smoke.cpp)
 locus_add_test(test_session tests/test_session.cpp)
 locus_add_test(test_orbital_layout tests/test_orbital_layout.cpp)
+locus_add_test(test_fan_layout tests/test_fan_layout.cpp)
 locus_add_test(test_scene_hittest tests/test_scene_hittest.cpp)
 locus_add_test(test_prefs tests/test_prefs.cpp)
 locus_add_test(test_hexhittest tests/test_hexhittest.cpp)

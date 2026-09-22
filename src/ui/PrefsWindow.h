@@ -78,6 +78,7 @@ private:
   QLabel *styleLabel_ = nullptr;
   QWidget *styleTileHex_ = nullptr;
   QWidget *styleTileOrbit_ = nullptr;
+  QWidget *styleTileFan_ = nullptr;
   QLabel *hotkeyLabel_ = nullptr;
   QLabel *hotkeyCaption_ = nullptr;
   QWidget *hotkeyField_ = nullptr;

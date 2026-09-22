@@ -6,7 +6,7 @@ namespace locus {
 
 using PinId = QString;
 
-enum class StyleId { Orbital, Cellular, Pie };
+enum class StyleId { Orbital, Cellular, Pie, Fan };
 
 enum class Appearance { Dark, Light, System };
 
