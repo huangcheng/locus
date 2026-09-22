@@ -5,7 +5,6 @@
 #include <QWidget>
 
 class QButtonGroup;
-class QKeySequenceEdit;
 class QLabel;
 class QListWidget;
 class QPushButton;
@@ -46,6 +45,7 @@ signals:
   void densityChanged();
   void pinsChanged();
   void languageChanged();
+  void hotkeyChanged();
 
 protected:
   void showEvent(QShowEvent *event) override;
@@ -80,7 +80,7 @@ private:
   QWidget *styleTileOrbit_ = nullptr;
   QLabel *hotkeyLabel_ = nullptr;
   QLabel *hotkeyCaption_ = nullptr;
-  QKeySequenceEdit *hotkeyEdit_ = nullptr;
+  QWidget *hotkeyField_ = nullptr;
   QLabel *loginLabel_ = nullptr;
   QWidget *loginToggle_ = nullptr;
 

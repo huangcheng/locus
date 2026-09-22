@@ -5,6 +5,7 @@
 #include "layout/CellularLayoutStrategy.h"
 #include "layout/OrbitalLayoutStrategy.h"
 #include "platform/AppLauncher.h"
+#include "platform/HotkeyManager.h"
 #include "platform/IconProvider.h"
 #include "platform/MacActivation.h"
 #include "platform/MacOverlay.h"
@@ -145,21 +146,25 @@ int main(int argc, char *argv[]) {
     }
   };
 
-  auto showMenu = [&] {
+  auto showMenuAt = [&](const QPoint &anchor) {
     session.open();
     if (session.focusedId().isEmpty() && !pinStore.pins().isEmpty())
       session.setFocus(pinStore.pins().first().id);
     rebuild();
     if (cellularView)
       cellularView->playOpenAnimation();
-    // Center on the primary screen (cursor-anchored summon arrives with the
-    // global hotkey), falling back to the cursor position if none exists.
+    overlay.showAt(anchor);
+    locus::macActivateApplication();
+  };
+
+  // Tray summon centers on the primary screen (cursor-anchored summon is the
+  // global hotkey's job), falling back to the cursor position if none exists.
+  auto showMenu = [&] {
     const QPoint anchor =
         QGuiApplication::primaryScreen()
             ? QGuiApplication::primaryScreen()->availableGeometry().center()
             : QCursor::pos();
-    overlay.showAt(anchor);
-    locus::macActivateApplication();
+    showMenuAt(anchor);
   };
 
   auto hideMenu = [&] {
@@ -276,6 +281,20 @@ int main(int argc, char *argv[]) {
   QObject::connect(&tray, &locus::TrayController::showRequested, &app, showMenu);
   QObject::connect(&tray, &locus::TrayController::quitRequested, &app,
                    &QApplication::quit);
+
+  // Global hotkey: toggles the widget from any app; re-registers live when
+  // the user records a new combo in Settings.
+  locus::HotkeyManager hotkeyManager;
+  hotkeyManager.setHotkey(prefs.hotkey());
+  QObject::connect(&hotkeyManager, &locus::HotkeyManager::triggered, &app,
+                   [&] {
+                     if (session.isOpen())
+                       hideMenu();
+                     else
+                       showMenuAt(QCursor::pos());
+                   });
+  QObject::connect(&prefsWindow, &locus::PrefsWindow::hotkeyChanged, &app,
+                   [&] { hotkeyManager.setHotkey(prefs.hotkey()); });
   auto showPrefs = [&] {
     if (session.isOpen())
       hideMenu();

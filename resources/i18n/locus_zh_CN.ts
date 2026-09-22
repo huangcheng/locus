@@ -84,6 +84,14 @@
         <translation>全局快捷键</translation>
     </message>
     <message>
+        <source>Press shortcut…</source>
+        <translation>按下快捷键…</translation>
+    </message>
+    <message>
+        <source>Not set</source>
+        <translation>未设置</translation>
+    </message>
+    <message>
         <source>Summons the launcher from any app, even while Locus is in the background.</source>
         <translation>在任意应用中呼出启动器，即使 Locus 处于后台。</translation>
     </message>

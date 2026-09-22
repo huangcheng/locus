@@ -10,17 +10,25 @@
 #include <QAbstractItemView>
 #include <QButtonGroup>
 #include <QDir>
+#include <QDrag>
+#include <QDragLeaveEvent>
+#include <QDragMoveEvent>
+#include <QDropEvent>
 #include <QEasingCurve>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QFocusEvent>
 #include <QHBoxLayout>
-#include <QKeySequenceEdit>
+#include <QKeyEvent>
+#include <QKeySequence>
 #include <QLabel>
 #include <QListWidget>
+#include <QMimeData>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
 #include <QPushButton>
+#include <QScrollArea>
 #include <QShowEvent>
 #include <QSlider>
 #include <QStackedWidget>
@@ -382,6 +390,168 @@ private:
   Palette pal_ = paletteFor(Appearance::Dark);
 };
 
+// Hotkey recorder rendering the shortcut as macOS keycap chips (⌃ Space);
+// click it and press a combo to record. QKeySequenceEdit's native look does
+// not fit the design language.
+class HotkeyField : public QFrame {
+public:
+  explicit HotkeyField(QWidget *parent = nullptr) : QFrame(parent) {
+    setFocusPolicy(Qt::StrongFocus);
+    setCursor(Qt::PointingHandCursor);
+    setFixedHeight(28);
+    setMinimumWidth(160);
+    setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+  }
+
+  void setPaletteColors(const Palette &pal) {
+    pal_ = pal;
+    update();
+  }
+  void setPrompts(const QString &recording, const QString &empty) {
+    recordingText_ = recording;
+    emptyText_ = empty;
+    update();
+  }
+  void setSequence(const QKeySequence &seq) {
+    seq_ = seq;
+    update();
+  }
+
+  std::function<void(const QKeySequence &)> onChanged;
+
+protected:
+  void mousePressEvent(QMouseEvent *) override {
+    setFocus();
+    setRecording(true);
+  }
+
+  void focusOutEvent(QFocusEvent *) override { setRecording(false); }
+
+  void keyPressEvent(QKeyEvent *event) override {
+    if (!recording_) {
+      const int key = event->key();
+      if (key == Qt::Key_Return || key == Qt::Key_Enter ||
+          key == Qt::Key_Space)
+        setRecording(true);
+      else
+        QFrame::keyPressEvent(event);
+      return;
+    }
+    const int key = event->key();
+    switch (key) {
+    case Qt::Key_Escape:
+      setRecording(false);
+      return;
+    case Qt::Key_Backspace:
+    case Qt::Key_Delete:
+      finish(QKeySequence());
+      return;
+    case Qt::Key_Control:
+    case Qt::Key_Shift:
+    case Qt::Key_Alt:
+    case Qt::Key_Meta:
+      return; // modifier-only press — wait for the real key
+    default:
+      break;
+    }
+    int combined = key;
+    const Qt::KeyboardModifiers mods = event->modifiers();
+    if (mods & Qt::ControlModifier)
+      combined |= Qt::CTRL;
+    if (mods & Qt::AltModifier)
+      combined |= Qt::ALT;
+    if (mods & Qt::ShiftModifier)
+      combined |= Qt::SHIFT;
+    if (mods & Qt::MetaModifier)
+      combined |= Qt::META;
+    finish(QKeySequence(combined));
+  }
+
+  void paintEvent(QPaintEvent *) override {
+    QPainter p(this);
+    p.setRenderHint(QPainter::Antialiasing);
+    const QRectF r = QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5);
+    p.setPen(QPen((recording_ || hasFocus()) ? pal_.amber : pal_.cardBorder,
+                  recording_ ? 1.5 : 1.0));
+    p.setBrush(pal_.controlBg);
+    p.drawRoundedRect(r, 6, 6);
+
+    QFont f = font();
+    f.setPixelSize(11);
+    p.setFont(f);
+    if (recording_) {
+      p.setPen(pal_.accentText);
+      p.drawText(rect(), Qt::AlignCenter, recordingText_);
+      return;
+    }
+    if (seq_.isEmpty()) {
+      p.setPen(pal_.faint);
+      p.drawText(rect(), Qt::AlignCenter, emptyText_);
+      return;
+    }
+
+    const QStringList chips = chipLabels();
+    const QFontMetricsF fm(f);
+    const qreal chipH = 18, pad = 12, gap = 4;
+    qreal total = gap * (chips.size() - 1);
+    QVector<qreal> widths;
+    widths.reserve(chips.size());
+    for (const QString &chip : chips) {
+      const qreal w = qMax(fm.horizontalAdvance(chip) + pad, 22.0);
+      widths.append(w);
+      total += w;
+    }
+    qreal x = (width() - total) / 2.0;
+    const qreal y = (height() - chipH) / 2.0;
+    for (int i = 0; i < chips.size(); ++i) {
+      const QRectF cr(x, y, widths[i], chipH);
+      p.setPen(QPen(pal_.cardBorder, 1));
+      p.setBrush(pal_.cardBg);
+      p.drawRoundedRect(cr, 4, 4);
+      p.setPen(pal_.text);
+      p.drawText(cr, Qt::AlignCenter, chips[i]);
+      x += widths[i] + gap;
+    }
+  }
+
+private:
+  void setRecording(bool on) {
+    if (recording_ == on)
+      return;
+    recording_ = on;
+    update();
+  }
+  void finish(const QKeySequence &seq) {
+    seq_ = seq;
+    setRecording(false);
+    if (onChanged)
+      onChanged(seq_);
+  }
+  QStringList chipLabels() const {
+    QStringList chips;
+    if (seq_.isEmpty())
+      return chips;
+    const int combined = seq_[0].toCombined();
+    if (combined & Qt::CTRL)
+      chips << QStringLiteral("⌃");
+    if (combined & Qt::ALT)
+      chips << QStringLiteral("⌥");
+    if (combined & Qt::SHIFT)
+      chips << QStringLiteral("⇧");
+    if (combined & Qt::META)
+      chips << QStringLiteral("⌘");
+    const int base = combined & ~int(Qt::KeyboardModifierMask);
+    chips << QKeySequence(base).toString(QKeySequence::NativeText);
+    return chips;
+  }
+
+  QKeySequence seq_;
+  QString recordingText_;
+  QString emptyText_;
+  bool recording_ = false;
+  Palette pal_ = paletteFor(Appearance::Dark);
+};
+
 class DragHandle : public QWidget {
 public:
   explicit DragHandle(QWidget *parent = nullptr) : QWidget(parent) {
@@ -446,6 +616,111 @@ public:
   std::function<void()> onRemove = [] {};
 };
 
+// QListWidget with an actually visible drop indicator (accent pill + dot)
+// and a floating row thumbnail while dragging — the default 1px line is
+// easy to miss, and item widgets never render into Qt's drag pixmap.
+class PinListWidget : public QListWidget {
+public:
+  explicit PinListWidget(QWidget *parent = nullptr) : QListWidget(parent) {}
+
+  void setIndicatorColor(const QColor &color) {
+    indicatorColor_ = color;
+    viewport()->update();
+  }
+
+protected:
+  void mousePressEvent(QMouseEvent *event) override {
+    pressPos_ = event->pos();
+    QListWidget::mousePressEvent(event);
+  }
+
+  void startDrag(Qt::DropActions supportedActions) override {
+    QListWidgetItem *item = currentItem();
+    QWidget *row = item ? itemWidget(item) : nullptr;
+    if (!row) {
+      QListWidget::startDrag(supportedActions);
+      return;
+    }
+    auto *drag = new QDrag(this);
+    drag->setMimeData(model()->mimeData(selectedIndexes()));
+    drag->setPixmap(row->grab());
+    drag->setHotSpot(pressPos_ - visualRect(indexFromItem(item)).topLeft());
+    // InternalMove: the drop event performs the row move itself, so there is
+    // no base-class bookkeeping to preserve here.
+    drag->exec(Qt::MoveAction, Qt::MoveAction);
+  }
+
+  void dragMoveEvent(QDragMoveEvent *event) override {
+    QListWidget::dragMoveEvent(event);
+    dropPos_ = event->position().toPoint();
+    viewport()->update();
+  }
+
+  void dragLeaveEvent(QDragLeaveEvent *event) override {
+    QListWidget::dragLeaveEvent(event);
+    dropPos_ = QPoint();
+    viewport()->update();
+  }
+
+  void dropEvent(QDropEvent *event) override {
+    QListWidget::dropEvent(event);
+    dropPos_ = QPoint();
+    viewport()->update();
+  }
+
+  void paintEvent(QPaintEvent *event) override {
+    QListWidget::paintEvent(event);
+    if (state() != QAbstractItemView::DraggingState || dropPos_.isNull())
+      return;
+    QPainter p(viewport());
+    p.setRenderHint(QPainter::Antialiasing);
+    const QModelIndex idx = indexAt(dropPos_);
+    if (idx.isValid() &&
+        dropIndicatorPosition() == QAbstractItemView::OnItem) {
+      QColor tint = indicatorColor_;
+      tint.setAlpha(28);
+      p.setPen(QPen(indicatorColor_, 2));
+      p.setBrush(tint);
+      p.drawRoundedRect(QRectF(visualRect(idx)).adjusted(2, 2, -2, -2), 8, 8);
+      return;
+    }
+    qreal y = dropPos_.y();
+    if (idx.isValid()) {
+      const QRect r = visualRect(idx);
+      y = dropIndicatorPosition() == QAbstractItemView::BelowItem
+              ? r.bottom() + 1.0
+              : r.top() - 1.0;
+    } else if (count() > 0) {
+      y = visualRect(model()->index(count() - 1, 0)).bottom() + 1.0;
+    }
+    p.setPen(Qt::NoPen);
+    p.setBrush(indicatorColor_);
+    p.drawEllipse(QPointF(10, y), 4, 4);
+    p.drawRoundedRect(QRectF(18, y - 2, viewport()->width() - 26, 4), 2, 2);
+  }
+
+private:
+  QPoint pressPos_;
+  QPoint dropPos_;
+  QColor indicatorColor_ = QColor("#EEC86D");
+};
+
+// Plain pane widgets overflow the window when a translation runs long —
+// let them scroll instead of clipping at the pane edge.
+QScrollArea *wrapInScrollArea(QWidget *content) {
+  auto *area = new QScrollArea;
+  area->setWidget(content);
+  area->setWidgetResizable(true);
+  area->setFrameShape(QFrame::NoFrame);
+  area->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  area->setAutoFillBackground(false);
+  area->viewport()->setAutoFillBackground(false);
+  // setWidget() force-enables autoFillBackground on the content (it would
+  // paint the default pale Window color over our themed background).
+  content->setAutoFillBackground(false);
+  return area;
+}
+
 } // namespace
 PrefsWindow::PrefsWindow(Prefs *prefs, PinStore *pins,
                          const IconProvider *icons, QWidget *parent)
@@ -453,7 +728,7 @@ PrefsWindow::PrefsWindow(Prefs *prefs, PinStore *pins,
   setWindowTitle(tr("Locus Settings"));
   setObjectName(QStringLiteral("prefsRoot"));
   setAttribute(Qt::WA_StyledBackground, true);
-  resize(680, 560);
+  resize(680, 620);
   setMinimumSize(620, 480);
 
   auto *root = new QHBoxLayout(this);
@@ -487,9 +762,9 @@ PrefsWindow::PrefsWindow(Prefs *prefs, PinStore *pins,
   root->addWidget(sidebar);
 
   stack_ = new QStackedWidget(this);
-  stack_->addWidget(buildGeneralPane());
-  stack_->addWidget(buildPinsPane());
-  stack_->addWidget(buildDensityPane());
+  stack_->addWidget(wrapInScrollArea(buildGeneralPane()));
+  stack_->addWidget(wrapInScrollArea(buildPinsPane()));
+  stack_->addWidget(wrapInScrollArea(buildDensityPane()));
   root->addWidget(stack_, 1);
 
   connect(navGroup_, &QButtonGroup::idClicked, this,
@@ -547,9 +822,6 @@ void PrefsWindow::applyPalette() {
                            border-radius: 8px; padding: 6px 12px;
                            font-size: 12px; font-weight: 600; }
     QPushButton#amberBtn:pressed { background: %13; }
-    QKeySequenceEdit { background: %10; border: 1px solid %9;
-                       border-radius: 6px; padding: 3px 8px; color: %3;
-                       font-size: 12px; }
     QSlider::groove:horizontal { height: 4px; background: %10;
                                  border-radius: 2px; }
     QSlider::sub-page:horizontal { background: %11; border-radius: 2px; }
@@ -599,6 +871,8 @@ void PrefsWindow::applyPalette() {
   static_cast<StyleTile *>(styleTileHex_)->setPaletteColors(p);
   static_cast<StyleTile *>(styleTileOrbit_)->setPaletteColors(p);
   static_cast<MiniHoneycomb *>(densityPreview_)->setPaletteColors(p);
+  static_cast<PinListWidget *>(pinList_)->setIndicatorColor(p.amber);
+  static_cast<HotkeyField *>(hotkeyField_)->setPaletteColors(p);
 }
 
 void PrefsWindow::retranslateUi() {
@@ -625,6 +899,8 @@ void PrefsWindow::retranslateUi() {
   static_cast<StyleTile *>(styleTileHex_)->setTitle(tr("Honeycomb"));
   static_cast<StyleTile *>(styleTileOrbit_)->setTitle(tr("Orbit"));
   hotkeyLabel_->setText(tr("Global hotkey"));
+  static_cast<HotkeyField *>(hotkeyField_)
+      ->setPrompts(tr("Press shortcut…"), tr("Not set"));
   hotkeyCaption_->setText(tr("Summons the launcher from any app, even "
                              "while Locus is in the background."));
   loginLabel_->setText(tr("Launch at login"));
@@ -765,9 +1041,10 @@ QWidget *PrefsWindow::buildGeneralPane() {
   auto *hotkeyRow = new QHBoxLayout;
   hotkeyLabel_ = new QLabel(tr("Global hotkey"), hotkeyCard);
   hotkeyRow->addWidget(hotkeyLabel_);
-  hotkeyEdit_ = new QKeySequenceEdit(hotkeyCard);
-  hotkeyEdit_->setFixedWidth(150);
-  hotkeyRow->addWidget(hotkeyEdit_, 0, Qt::AlignRight);
+  auto *hotkeyField = new HotkeyField(hotkeyCard);
+  hotkeyField->setPrompts(tr("Press shortcut…"), tr("Not set"));
+  hotkeyField_ = hotkeyField;
+  hotkeyRow->addWidget(hotkeyField, 0, Qt::AlignRight);
   hotkeyLay->addLayout(hotkeyRow);
   hotkeyCaption_ = new QLabel(tr("Summons the launcher from any app, even "
                                  "while Locus is in the background."),
@@ -776,8 +1053,10 @@ QWidget *PrefsWindow::buildGeneralPane() {
   hotkeyCaption_->setWordWrap(true);
   hotkeyLay->addWidget(hotkeyCaption_);
   lay->addWidget(hotkeyCard);
-  connect(hotkeyEdit_, &QKeySequenceEdit::editingFinished, this,
-          [this] { prefs_->setHotkey(hotkeyEdit_->keySequence()); });
+  hotkeyField->onChanged = [this](const QKeySequence &seq) {
+    prefs_->setHotkey(seq);
+    emit hotkeyChanged();
+  };
 
   // Launch at login
   auto *loginCard = new QFrame(pane);
@@ -828,7 +1107,7 @@ QWidget *PrefsWindow::buildPinsPane() {
   auto *cardLay = new QVBoxLayout(card);
   cardLay->setContentsMargins(6, 6, 6, 6);
   cardLay->setSpacing(0);
-  pinList_ = new QListWidget(card);
+  pinList_ = new PinListWidget(card);
   pinList_->setFrameShape(QFrame::NoFrame);
   pinList_->setSelectionMode(QAbstractItemView::SingleSelection);
   pinList_->setDragDropMode(QAbstractItemView::InternalMove);
@@ -947,7 +1226,7 @@ void PrefsWindow::refreshFromModel() {
   orbitTile->setCheckedState(!cellular);
   hexTile->setCaption(cellular ? tr("Current") : tr("Grid"));
   orbitTile->setCaption(cellular ? tr("Legacy") : tr("Current"));
-  hotkeyEdit_->setKeySequence(prefs_->hotkey());
+  static_cast<HotkeyField *>(hotkeyField_)->setSequence(prefs_->hotkey());
   static_cast<Toggle *>(loginToggle_)
       ->setChecked(macLaunchAtLoginEnabled(), false);
 

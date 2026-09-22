@@ -24,21 +24,22 @@ set(LOCUS_CORE_SOURCES
   src/platform/IconProvider.cpp
   src/platform/AppLauncher.cpp
   src/platform/TrayController.cpp
+  src/platform/HotkeyManager.h
   resources.qrc
 )
 
 if(APPLE)
   enable_language(OBJCXX)
-  list(APPEND LOCUS_CORE_SOURCES src/platform/MacActivation.mm src/platform/MacIcon.mm src/platform/MacLoginItem.mm src/platform/MacOverlay.mm)
+  list(APPEND LOCUS_CORE_SOURCES src/platform/MacActivation.mm src/platform/MacIcon.mm src/platform/MacLoginItem.mm src/platform/MacOverlay.mm src/platform/MacHotkey.mm)
 else()
-  list(APPEND LOCUS_CORE_SOURCES src/platform/MacStubs.cpp)
+  list(APPEND LOCUS_CORE_SOURCES src/platform/MacStubs.cpp src/platform/HotkeyManagerStub.cpp)
 endif()
 
 add_library(locus_core STATIC ${LOCUS_CORE_SOURCES})
 target_include_directories(locus_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(locus_core PUBLIC Qt6::Widgets)
 if(APPLE)
-  target_link_libraries(locus_core PUBLIC "-framework AppKit" "-framework ServiceManagement")
+  target_link_libraries(locus_core PUBLIC "-framework AppKit" "-framework ServiceManagement" "-framework Carbon")
 endif()
 
 if(APPLE)
