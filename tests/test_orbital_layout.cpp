@@ -97,6 +97,26 @@ private slots:
     QCOMPARE(trackCount(scene), 0);
     QVERIFY(discWidth(scene) > 0); // hub-sized disc still renders
   }
+
+  void densityScalesGeometry() {
+    locus::OrbitalLayoutStrategy s;
+    locus::DensityPrefs d;
+    d.cellSize = 96;
+    d.cellGap = 16;
+    auto scene = s.build(makePins(6), {}, d);
+    // Track radius and chip size follow the shared sliders.
+    const QRectF disc = scene.decorations.first().bounds;
+    const QPointF c = scene.items.first().bounds.center();
+    QVERIFY(qAbs(disc.center().y() - c.y() - 96.0 * 1.1) < 0.01);
+    QVERIFY(qAbs(scene.items.first().bounds.width() - 96.0 * 0.55) < 0.01);
+    // Wider spacing pushes the second track further out.
+    const auto twoTracks = s.build(makePins(9), {}, d);
+    qreal r1 = 0;
+    for (const auto &dec : twoTracks.decorations)
+      if (dec.styleKey == QLatin1String("orbit.track"))
+        r1 = qMax(r1, dec.bounds.width() / 2.0);
+    QVERIFY(qAbs(r1 - (96.0 * 1.1 + 96.0 * 0.6 + 16.0 * 2.0)) < 0.01);
+  }
 };
 
 QTEST_MAIN(OrbitalTest)

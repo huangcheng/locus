@@ -72,6 +72,11 @@ void OrbitalGlassView::setAppearance(Appearance appearance) {
   update();
 }
 
+void OrbitalGlassView::setBackdrop(Backdrop backdrop) {
+  backdrop_ = backdrop;
+  update();
+}
+
 void OrbitalGlassView::setIcon(const QString &pinId, const QIcon &icon) {
   icons_.insert(pinId, icon);
   update();
@@ -234,21 +239,33 @@ void OrbitalGlassView::paintEvent(QPaintEvent *) {
     p.drawEllipse(shadowRect);
   }
 
-  // Disc body: a whisper of tint over the real Liquid Glass backdrop
-  // (NSGlassEffectView on macOS 26+, vibrancy fallback on older systems).
-  // The glass draws its own rim and specular highlights, so there is no
-  // hand-painted border or inner light here.
+  // Disc body. Over a native material (Glass/Frosted) a whisper of tint is
+  // enough — the material draws its own rim and specular highlights. Under
+  // Tint there is nothing behind the disc but the wallpaper, so the painted
+  // fill carries the disc: nearly opaque, with a real border for definition.
   {
     QLinearGradient fill(disc.topLeft(), disc.bottomLeft());
-    if (dark) {
-      fill.setColorAt(0.0, QColor(255, 255, 255, 14));
-      fill.setColorAt(1.0, QColor(255, 255, 255, 7));
+    if (backdrop_ == Backdrop::Tint) {
+      if (dark) {
+        fill.setColorAt(0.0, QColor(34, 34, 40, 216));
+        fill.setColorAt(1.0, QColor(24, 24, 30, 200));
+      } else {
+        fill.setColorAt(0.0, QColor(252, 252, 253, 226));
+        fill.setColorAt(1.0, QColor(242, 242, 246, 206));
+      }
+      p.setBrush(fill);
+      p.setPen(QPen(dark ? QColor(255, 255, 255, 34) : QColor(0, 0, 0, 26), 1));
     } else {
-      fill.setColorAt(0.0, QColor(255, 255, 255, 55));
-      fill.setColorAt(1.0, QColor(255, 255, 255, 32));
+      if (dark) {
+        fill.setColorAt(0.0, QColor(255, 255, 255, 14));
+        fill.setColorAt(1.0, QColor(255, 255, 255, 7));
+      } else {
+        fill.setColorAt(0.0, QColor(255, 255, 255, 55));
+        fill.setColorAt(1.0, QColor(255, 255, 255, 32));
+      }
+      p.setBrush(fill);
+      p.setPen(QPen(dark ? QColor(255, 255, 255, 18) : QColor(0, 0, 0, 12), 1));
     }
-    p.setBrush(fill);
-    p.setPen(QPen(dark ? QColor(255, 255, 255, 18) : QColor(0, 0, 0, 12), 1));
     p.drawEllipse(disc);
   }
 
@@ -376,7 +393,8 @@ void OrbitalGlassView::paintEvent(QPaintEvent *) {
     p.setPen(QPen(border, 1));
     p.drawPath(chipPath);
 
-    const qreal iconSize = chip.width() - kIconInset * 2.0;
+    const qreal iconSize =
+        qMin(iconSize_, chip.width() - kIconInset * 2.0);
     const QRectF iconRect(chip.center().x() - iconSize / 2.0,
                           chip.center().y() - iconSize / 2.0, iconSize,
                           iconSize);

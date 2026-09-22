@@ -1,6 +1,6 @@
 #include "ui/OverlayWindow.h"
 
-#include "platform/MacOverlay.h"
+#include "platform/CrystalBackdrop.h"
 
 #include <QGuiApplication>
 #include <QScreen>
@@ -75,7 +75,7 @@ void OverlayWindow::resizeToContent() {
 void OverlayWindow::hideEvent(QHideEvent *event) {
   // The crystal glass is a detached companion window — nothing hides it
   // automatically, so drop it whenever the overlay goes away.
-  macInstallCrystalBackdrop(this, QRectF(), false);
+  installCrystalBackdrop(this, QRectF(), false);
   QWidget::hideEvent(event);
 }
 

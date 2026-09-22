@@ -55,10 +55,12 @@ private:
   QWidget *buildGeneralPane();
   QWidget *buildPinsPane();
   QWidget *buildDensityPane();
+  QWidget *buildAboutPane();
   void applyPalette();
   void reloadPinRows();
   void commitPinOrder();
   void addApp();
+  void updateDensityStrings();
 
   Prefs *prefs_;
   PinStore *pins_;
@@ -106,6 +108,13 @@ private:
   QLabel *previewCaption_ = nullptr;
   QLabel *densityNote_ = nullptr;
   QWidget *densityPreview_ = nullptr;
+
+  // About pane
+  QLabel *aboutTitle_ = nullptr;
+  QLabel *aboutVersion_ = nullptr;
+  QLabel *aboutTagline_ = nullptr;
+  QLabel *aboutLink_ = nullptr;
+  QLabel *aboutCopyright_ = nullptr;
 };
 
 } // namespace locus

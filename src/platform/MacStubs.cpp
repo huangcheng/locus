@@ -8,7 +8,6 @@ void macActivateApplication() {}
 void macStyleSettingsWindow(QWidget *) {}
 bool macReduceMotion() { return false; }
 void macMakeOverlayLiveWhenInactive(QWidget *, QWidget *) {}
-void macInstallCrystalBackdrop(QWidget *, const QRectF &, bool) {}
 
 bool macLaunchAtLoginEnabled() { return false; }
 bool macSetLaunchAtLogin(bool) { return false; }

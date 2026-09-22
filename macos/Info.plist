@@ -7,7 +7,7 @@
   <key>CFBundleExecutable</key>
   <string>Locus</string>
   <key>CFBundleIdentifier</key>
-  <string>app.locus.launcher</string>
+  <string>im.cheng.locus</string>
   <key>CFBundleIconFile</key>
   <string>AppIcon</string>
   <key>CFBundleInfoDictionaryVersion</key>

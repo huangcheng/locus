@@ -32,13 +32,14 @@ set(LOCUS_CORE_SOURCES
 
 if(APPLE)
   enable_language(OBJCXX)
-  list(APPEND LOCUS_CORE_SOURCES src/platform/MacActivation.mm src/platform/MacIcon.mm src/platform/MacLoginItem.mm src/platform/MacOverlay.mm src/platform/MacHotkey.mm)
+  list(APPEND LOCUS_CORE_SOURCES src/platform/MacActivation.mm src/platform/MacIcon.mm src/platform/MacLoginItem.mm src/platform/MacOverlay.mm src/platform/MacHotkey.mm src/platform/CrystalBackdrop_mac.mm)
 else()
-  list(APPEND LOCUS_CORE_SOURCES src/platform/MacStubs.cpp src/platform/HotkeyManagerStub.cpp)
+  list(APPEND LOCUS_CORE_SOURCES src/platform/MacStubs.cpp src/platform/HotkeyManagerStub.cpp src/platform/CrystalBackdrop_stub.cpp)
 endif()
 
 add_library(locus_core STATIC ${LOCUS_CORE_SOURCES})
 target_include_directories(locus_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_compile_definitions(locus_core PUBLIC LOCUS_VERSION="${PROJECT_VERSION}")
 target_link_libraries(locus_core PUBLIC Qt6::Widgets)
 if(APPLE)
   target_link_libraries(locus_core PUBLIC "-framework AppKit" "-framework ServiceManagement" "-framework Carbon")
@@ -51,7 +52,7 @@ if(APPLE)
     OUTPUT_NAME "Locus"
     MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/macos/Info.plist"
     MACOSX_BUNDLE_BUNDLE_NAME "Locus"
-    MACOSX_BUNDLE_GUI_IDENTIFIER "app.locus.launcher"
+    MACOSX_BUNDLE_GUI_IDENTIFIER "im.cheng.locus"
     MACOSX_BUNDLE_BUNDLE_VERSION "0.1.0"
     MACOSX_BUNDLE_SHORT_VERSION_STRING "0.1.0"
     MACOSX_BUNDLE_ICON_FILE "AppIcon.icns"
@@ -80,6 +81,7 @@ endfunction()
 
 locus_add_test(test_smoke tests/test_smoke.cpp)
 locus_add_test(test_session tests/test_session.cpp)
+locus_add_test(test_backdrop tests/test_backdrop.cpp)
 locus_add_test(test_orbital_layout tests/test_orbital_layout.cpp)
 locus_add_test(test_fan_layout tests/test_fan_layout.cpp)
 locus_add_test(test_scene_hittest tests/test_scene_hittest.cpp)

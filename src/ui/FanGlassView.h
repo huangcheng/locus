@@ -24,6 +24,13 @@ public:
   void setAppearance(Appearance appearance);
   void setIcon(const QString &pinId, const QIcon &icon);
 
+  /// Density "Icon size" slider — the face-up card glyph, clamped to the
+  /// card width so it can never overflow the card.
+  void setIconSize(qreal size) {
+    iconSize_ = size;
+    update();
+  }
+
 signals:
   void itemHovered(const QString &id);
   void itemActivated(const QString &id);
@@ -43,6 +50,7 @@ private:
 
   SceneModel scene_;
   Appearance appearance_ = Appearance::Dark;
+  qreal iconSize_ = 40.0;
   QHash<QString, QIcon> icons_;
   QString lastHover_;
   int extent_ = 560;

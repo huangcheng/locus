@@ -2,6 +2,7 @@
 
 #include "core/MenuView.h"
 #include "core/Types.h"
+#include "platform/CrystalBackdrop.h"
 
 #include <QElapsedTimer>
 #include <QHash>
@@ -29,6 +30,19 @@ public:
   void setAppearance(Appearance appearance);
   void setIcon(const QString &pinId, const QIcon &icon);
 
+  /// Density "Icon size" slider — the glyph inside a chip, clamped to the
+  /// chip's inner padding so it can never overflow the chip.
+  void setIconSize(qreal size) {
+    iconSize_ = size;
+    update();
+  }
+
+  /// Which native backdrop material sits behind the disc. Geometry and motion
+  /// never change — only the painted disc fill steps up when there is no
+  /// native material (Tint) to keep the UI legible over any wallpaper.
+  Backdrop backdrop() const { return backdrop_; }
+  void setBackdrop(Backdrop backdrop);
+
   /// Disc bounds in widget coordinates; the platform crystal backdrop masks
   /// its backdrop blur to this circle.
   QRectF discRect() const { return discBounds(); }
@@ -54,6 +68,8 @@ private:
 
   SceneModel scene_;
   Appearance appearance_ = Appearance::Dark;
+  Backdrop backdrop_ = Backdrop::Tint; // until the platform reports otherwise
+  qreal iconSize_ = 40.0;
   QHash<QString, QIcon> icons_;
   QString lastHover_;
   int extent_ = 560;

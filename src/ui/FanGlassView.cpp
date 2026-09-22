@@ -190,7 +190,7 @@ void FanGlassView::paintEvent(QPaintEvent *) {
 
     const QIcon icon = icons_.value(item->id);
     if (faceUp) {
-      const qreal iconBox = 46.0;
+      const qreal iconBox = qMin(iconSize_ * 1.15, card.width() * 0.6);
       const QRectF iconRect((card.width() - iconBox) / 2.0, 18.0, iconBox,
                             iconBox);
       QPainterPath iconClip;

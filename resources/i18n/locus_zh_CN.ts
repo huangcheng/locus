@@ -124,6 +124,22 @@
         <translation>单元格大小</translation>
     </message>
     <message>
+        <source>Chip size</source>
+        <translation>圆片大小</translation>
+    </message>
+    <message>
+        <source>Card size</source>
+        <translation>卡片大小</translation>
+    </message>
+    <message>
+        <source>Card peek</source>
+        <translation>卡片露出</translation>
+    </message>
+    <message>
+        <source>Track spacing</source>
+        <translation>轨道间距</translation>
+    </message>
+    <message>
         <source>Cell spacing</source>
         <translation>单元格间距</translation>
     </message>
@@ -140,8 +156,36 @@
         <translation>实时预览 · 高亮显示选中的单元格</translation>
     </message>
     <message>
+        <source>Live preview · selected chip highlighted</source>
+        <translation>实时预览 · 高亮显示选中的圆片</translation>
+    </message>
+    <message>
+        <source>Live preview · selected card highlighted</source>
+        <translation>实时预览 · 高亮显示选中的卡片</translation>
+    </message>
+    <message>
         <source>When apps overflow the grid, a new row opens automatically.</source>
         <translation>当应用超出网格容量时，会自动开启新的一行。</translation>
+    </message>
+    <message>
+        <source>When apps overflow a track, a new track opens automatically.</source>
+        <translation>当应用超出轨道容量时，会自动开启新的一圈。</translation>
+    </message>
+    <message>
+        <source>When apps overflow a hand, a new hand stacks above.</source>
+        <translation>当应用超出一组卡片时，会在上方叠放新的一组。</translation>
+    </message>
+    <message>
+        <source>About</source>
+        <translation>关于</translation>
+    </message>
+    <message>
+        <source>Version %1</source>
+        <translation>版本 %1</translation>
+    </message>
+    <message>
+        <source>A radial launcher for your favorite apps.</source>
+        <translation>你喜爱应用的环形启动器。</translation>
     </message>
 </context>
 <context>

@@ -8,15 +8,11 @@
 namespace locus {
 namespace {
 
-// Playing-card hands: each row is a tight left→right stack.
-constexpr qreal kCardW = 84.0;
-constexpr qreal kCardH = 110.0;
-constexpr qreal kPeek = 22.0;       // readable index strip without looking sparse
-constexpr qreal kArch = 40.0;
+// Playing-card hands: each row is a tight left→right stack. All metrics
+// derive from the shared density sliders; defaults (cellSize 80, cellGap 8)
+// reproduce the original 84×110 card / 22 peek / 168 lane geometry exactly.
 constexpr qreal kMaxTiltDeg = 34.0;
 constexpr int kPerHand = 12;
-constexpr qreal kLanePitch = 168.0; // keep stacked hands from colliding
-constexpr qreal kMargin = 64.0;
 
 QPolygonF rotatedCardPolygon(QPointF center, qreal w, qreal h, qreal tiltRad) {
   const qreal hw = w / 2.0;
@@ -40,14 +36,13 @@ SceneModel FanLayoutStrategy::build(const QVector<Pin> &pins,
                                     const DensityPrefs &density) {
   SceneModel scene;
 
-  const qreal scale =
-      (density.widgetSize > 0 ? density.widgetSize : 560.0) / 560.0;
-  const qreal cardW = kCardW * scale;
-  const qreal cardH = kCardH * scale;
-  const qreal peek = kPeek * scale;
-  const qreal arch = kArch * scale;
-  const qreal lanePitch = kLanePitch * scale;
-  const qreal margin = kMargin * scale;
+  const qreal cardW = density.cellSize * 1.05;   // 84 @80
+  const qreal cardH = density.cellSize * 1.375;  // 110 @80
+  const qreal peek = density.cellGap * 2.75;     // 22 @8: readable index strip
+  const qreal arch = density.cellSize * 0.5;     // 40 @80
+  const qreal lanePitch =
+      cardH + arch + density.cellGap * 2.25;     // 168: stacked hands clear
+  const qreal margin = density.cellSize * 0.8;   // 64 @80
 
   const int n = pins.size();
   const int hands = n == 0 ? 0 : (n + kPerHand - 1) / kPerHand;
@@ -93,7 +88,8 @@ SceneModel FanLayoutStrategy::build(const QVector<Pin> &pins,
     track.name = QStringLiteral("Hand");
     track.kind = DecorationKind::Ellipse;
     track.bounds = QRectF(startX - cardW * 0.2, laneY - arch - cardH * 0.55,
-                          span + cardW * 1.4, cardH + arch + 24.0 * scale);
+                          span + cardW * 1.4,
+                          cardH + arch + density.cellSize * 0.3);
     track.styleKey = QStringLiteral("fan.track");
     scene.decorations.push_back(track);
 

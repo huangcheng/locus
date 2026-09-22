@@ -138,6 +138,12 @@ QPixmap navGlyph(int kind, const QColor &color) {
     p.setBrush(color);
     p.setPen(Qt::NoPen);
     p.drawEllipse(QPointF(8, 8), 1.4, 1.4);
+  } else if (kind == 3) { // info: circle + dot + stem
+    p.drawEllipse(QPointF(8, 8), 6.2, 6.2);
+    p.setBrush(color);
+    p.setPen(Qt::NoPen);
+    p.drawEllipse(QPointF(8, 4.6), 1.0, 1.0);
+    p.drawRoundedRect(QRectF(7.25, 7.0, 1.5, 4.6), 0.75, 0.75);
   } else {
     for (const qreal y : {4.0, 8.0, 12.0})
       p.drawLine(QPointF(2, y), QPointF(14, y));
@@ -237,6 +243,85 @@ private:
   QColor off_ = QColor(255, 255, 255, 45);
 };
 
+// One glyph composition per menu style — the same drawing the style tiles
+// use, shared with the density preview so the two never drift apart. Drawn
+// around a per-kind anchor at `scale` (1 = tile size); `d` scales element
+// size (cellSize) and spacing (cellGap) so the preview reflects the density
+// sliders. The amber element is the "selected" motif every style shares.
+// Anchors: Honeycomb = bbox center, Orbit = ring center, Fan = pivot.
+enum class StyleGlyph { Honeycomb, Orbit, Fan };
+
+void paintStyleGlyph(QPainter &p, StyleGlyph kind, const QPointF &anchor,
+                     qreal scale, const DensityPrefs &d, const Palette &pal) {
+  const qreal elem = d.cellSize / 80.0;
+  const qreal gap = d.cellGap / 8.0;
+  QColor cellColor = pal.text;
+  cellColor.setAlpha(38);
+  if (kind == StyleGlyph::Honeycomb) {
+    const qreal w = 12 * elem * scale, h = 14 * elem * scale;
+    const qreal pitchX = (12 + gap) * elem * scale;
+    const qreal pitchY = 11 * elem * scale;
+    const int rows[3] = {3, 2, 3};
+    int index = 0;
+    for (int r = 0; r < 3; ++r) {
+      const int n = rows[r];
+      const qreal rowW = (n - 1) * pitchX + w;
+      const qreal x0 = anchor.x() - rowW / 2.0;
+      const qreal y = anchor.y() + (r - 1) * pitchY - h / 2.0;
+      for (int c = 0; c < n; ++c) {
+        p.setPen(Qt::NoPen);
+        p.setBrush(index == 3 ? pal.amber : cellColor);
+        p.drawPath(hexPath(x0 + c * pitchX, y, w, h));
+        ++index;
+      }
+    }
+  } else if (kind == StyleGlyph::Fan) {
+    p.setPen(Qt::NoPen);
+    p.setBrush(pal.amber);
+    p.drawEllipse(anchor, 2.5 * scale, 2.5 * scale);
+    for (int i = -2; i <= 2; ++i) {
+      const qreal tilt = i * 14.0 * gap;
+      const qreal orbit = -M_PI / 2.0 + qDegreesToRadians(tilt);
+      const qreal R = 22.0 * elem * scale;
+      const QPointF c(anchor.x() + std::cos(orbit) * R,
+                      anchor.y() + std::sin(orbit) * R);
+      p.save();
+      p.translate(c);
+      p.rotate(tilt);
+      p.setBrush(i == 0 ? pal.amber : cellColor);
+      p.setPen(Qt::NoPen);
+      p.drawRoundedRect(QRectF(-5 * elem * scale, -7 * elem * scale,
+                               10 * elem * scale, 14 * elem * scale),
+                        2.5 * scale, 2.5 * scale);
+      p.restore();
+    }
+  } else {
+    const qreal r = 14 * elem * scale;
+    QColor track = pal.text;
+    track.setAlpha(40);
+    p.setPen(QPen(track, 3 * scale));
+    p.setBrush(Qt::NoBrush);
+    p.drawEllipse(anchor, r, r);
+    QPen arcPen(pal.amber, 3 * scale);
+    arcPen.setCapStyle(Qt::RoundCap);
+    p.setPen(arcPen);
+    p.drawArc(QRectF(anchor.x() - r, anchor.y() - r, 2 * r, 2 * r), -31 * 16,
+              63 * 16);
+    p.setPen(Qt::NoPen);
+    p.setBrush(pal.amber);
+    p.drawEllipse(anchor, 3 * scale, 3 * scale);
+    QColor bead = pal.text;
+    bead.setAlpha(140);
+    p.setBrush(bead);
+    for (int i = 1; i < 6; ++i) {
+      const qreal a = M_PI * i / 3.0;
+      p.drawEllipse(
+          QPointF(anchor.x() + std::cos(a) * r, anchor.y() + std::sin(a) * r),
+          2 * elem * scale, 2 * elem * scale);
+    }
+  }
+}
+
 class StyleTile : public QFrame {
 public:
   enum Kind { Honeycomb, Orbit, Fan };
@@ -283,64 +368,13 @@ protected:
 
     const qreal cx = width() / 2.0;
     const qreal top = 14.0;
-    QColor cellColor = pal_.text;
-    cellColor.setAlpha(38);
-    if (kind_ == Honeycomb) {
-      const qreal w = 12, h = 14, ox = cx - 19;
-      const QPointF spots[8] = {{ox + 1, top},          {ox + 14, top},
-                                {ox + 27, top},         {ox + 7.5, top + 11},
-                                {ox + 20.5, top + 11},  {ox + 1, top + 22},
-                                {ox + 14, top + 22},    {ox + 27, top + 22}};
-      for (int i = 0; i < 8; ++i) {
-        p.setPen(Qt::NoPen);
-        p.setBrush(i == 3 ? pal_.amber : cellColor);
-        p.drawPath(hexPath(spots[i].x(), spots[i].y(), w, h));
-      }
-    } else if (kind_ == Fan) {
-      const QPointF pivot(cx, top + 36);
-      p.setPen(Qt::NoPen);
-      p.setBrush(pal_.amber);
-      p.drawEllipse(pivot, 2.5, 2.5);
-      for (int i = -2; i <= 2; ++i) {
-        const qreal tilt = i * 14.0;
-        const qreal orbit = -M_PI / 2.0 + qDegreesToRadians(tilt);
-        const qreal R = 22.0;
-        const QPointF c(pivot.x() + std::cos(orbit) * R,
-                        pivot.y() + std::sin(orbit) * R);
-        p.save();
-        p.translate(c);
-        p.rotate(tilt);
-        p.setBrush(i == 0 ? pal_.amber : cellColor);
-        p.setPen(Qt::NoPen);
-        p.drawRoundedRect(QRectF(-5, -7, 10, 14), 2.5, 2.5);
-        p.restore();
-      }
-    } else {
-      const QPointF center(cx, top + 18);
-      QColor track = pal_.text;
-      track.setAlpha(40);
-      QPen trackPen(track, 3);
-      p.setPen(trackPen);
-      p.setBrush(Qt::NoBrush);
-      p.drawEllipse(center, 14, 14);
-      QPen arcPen(pal_.amber, 3);
-      arcPen.setCapStyle(Qt::RoundCap);
-      p.setPen(arcPen);
-      p.drawArc(QRectF(center.x() - 14, center.y() - 14, 28, 28), -31 * 16,
-                63 * 16);
-      p.setPen(Qt::NoPen);
-      p.setBrush(pal_.amber);
-      p.drawEllipse(center, 3, 3);
-      QColor bead = pal_.text;
-      bead.setAlpha(140);
-      p.setBrush(bead);
-      for (int i = 1; i < 6; ++i) {
-        const qreal a = M_PI * i / 3.0;
-        p.drawEllipse(
-            QPointF(center.x() + std::cos(a) * 14, center.y() + std::sin(a) * 14),
-            2, 2);
-      }
-    }
+    const StyleGlyph glyph = kind_ == Honeycomb ? StyleGlyph::Honeycomb
+                             : kind_ == Fan    ? StyleGlyph::Fan
+                                               : StyleGlyph::Orbit;
+    const QPointF anchor = kind_ == Honeycomb ? QPointF(cx + 1, 32)
+                           : kind_ == Fan     ? QPointF(cx, top + 36)
+                                              : QPointF(cx, top + 18);
+    paintStyleGlyph(p, glyph, anchor, 1.0, DensityPrefs(), pal_);
 
     QFont f = font();
     f.setPixelSize(12);
@@ -363,16 +397,22 @@ private:
   Palette pal_ = paletteFor(Appearance::Dark);
 };
 
-class MiniHoneycomb : public QWidget {
+// Live density preview: paints the SAME glyph as the selected style's tile
+// (shared paintStyleGlyph), scaled up, with the density sliders applied to
+// element size and spacing.
+class DensityPreview : public QWidget {
 public:
-  explicit MiniHoneycomb(QWidget *parent = nullptr) : QWidget(parent) {
+  explicit DensityPreview(QWidget *parent = nullptr) : QWidget(parent) {
     setFixedHeight(118);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
   }
 
-  void setMetrics(qreal cellSize, qreal gap) {
-    cellSize_ = cellSize;
-    gap_ = gap;
+  void setStyle(StyleId style) {
+    style_ = style;
+    update();
+  }
+  void setMetrics(const DensityPrefs &d) {
+    d_ = d;
     update();
   }
   void setPaletteColors(const Palette &pal) {
@@ -384,43 +424,32 @@ protected:
   void paintEvent(QPaintEvent *) override {
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing);
-    const qreal cell = cellSize_;
-    const qreal pitchX = cell + gap_;
-    const qreal cellH = cell * 1.15;
-    const qreal pitchY = cell * 0.9625;
-    const qreal gridW = 3 * pitchX + cell;
-    const qreal gridH = 2 * pitchY + cellH;
-    const qreal s =
-        qMin((width() - 40.0) / gridW, (height() - 24.0) / gridH);
-    const qreal ox = (width() - gridW * s) / 2.0;
-    const qreal oy = (height() - gridH * s) / 2.0;
-
-    QColor cellFill = pal_.text;
-    cellFill.setAlpha(16);
-    QColor selectedFill = pal_.amber;
-    selectedFill.setAlpha(56);
-
-    int index = 0;
-    for (int r = 0; r < 3; ++r) {
-      const int n = r % 2 == 0 ? 3 : 4;
-      const qreal rowW = (n - 1) * pitchX + cell;
-      const qreal x0 = ox + (gridW - rowW) * s / 2.0;
-      for (int c = 0; c < n; ++c) {
-        const QPainterPath hex =
-            hexPath(x0 + c * pitchX * s, oy + r * pitchY * s, cell * s,
-                    cellH * s);
-        const bool selected = index == 4;
-        p.setPen(QPen(selected ? pal_.amber : pal_.cardBorder, 1));
-        p.setBrush(selected ? selectedFill : cellFill);
-        p.drawPath(hex);
-        ++index;
-      }
+    const qreal elem = d_.cellSize / 80.0;
+    if (style_ == StyleId::Fan) {
+      const qreal s = qMin((width() - 48.0) / (36.0 * elem),
+                           (height() - 20.0) / (34.0 * elem));
+      // The glyph hangs above its pivot; drop the pivot so it centers.
+      const qreal top = 29.0 * elem * s, bottom = 3.0 * s;
+      paintStyleGlyph(p, StyleGlyph::Fan,
+                      QPointF(width() / 2.0,
+                              height() / 2.0 + (top - bottom) / 2.0),
+                      s, d_, pal_);
+    } else if (style_ == StyleId::Cellular) {
+      const qreal s = qMin((width() - 40.0) / (38.0 * elem),
+                           (height() - 24.0) / (36.0 * elem));
+      paintStyleGlyph(p, StyleGlyph::Honeycomb,
+                      QPointF(width() / 2.0, height() / 2.0), s, d_, pal_);
+    } else {
+      const qreal s = qMin((width() - 40.0) / (36.0 * elem),
+                           (height() - 16.0) / (36.0 * elem));
+      paintStyleGlyph(p, StyleGlyph::Orbit,
+                      QPointF(width() / 2.0, height() / 2.0), s, d_, pal_);
     }
   }
 
 private:
-  qreal cellSize_ = 80;
-  qreal gap_ = 8;
+  StyleId style_ = StyleId::Cellular;
+  DensityPrefs d_;
   Palette pal_ = paletteFor(Appearance::Dark);
 };
 
@@ -779,7 +808,8 @@ PrefsWindow::PrefsWindow(Prefs *prefs, PinStore *pins,
 
   navGroup_ = new QButtonGroup(this);
   navGroup_->setExclusive(true);
-  const QStringList navNames = {tr("General"), tr("Pins"), tr("Density")};
+  const QStringList navNames = {tr("General"), tr("Pins"), tr("Density"),
+                                tr("About")};
   for (int i = 0; i < navNames.size(); ++i) {
     auto *btn = new QToolButton(sidebar);
     btn->setObjectName(QStringLiteral("navBtn"));
@@ -799,6 +829,7 @@ PrefsWindow::PrefsWindow(Prefs *prefs, PinStore *pins,
   stack_->addWidget(wrapInScrollArea(buildGeneralPane()));
   stack_->addWidget(wrapInScrollArea(buildPinsPane()));
   stack_->addWidget(wrapInScrollArea(buildDensityPane()));
+  stack_->addWidget(wrapInScrollArea(buildAboutPane()));
   root->addWidget(stack_, 1);
 
   connect(navGroup_, &QButtonGroup::idClicked, this,
@@ -806,7 +837,7 @@ PrefsWindow::PrefsWindow(Prefs *prefs, PinStore *pins,
   navGroup_->button(0)->setChecked(true);
 
   setResolvedAppearance(Appearance::Dark);
-  refreshFromModel();
+  retranslateUi(); // also calls refreshFromModel()
 }
 
 void PrefsWindow::setResolvedAppearance(Appearance appearance) {
@@ -905,15 +936,47 @@ void PrefsWindow::applyPalette() {
   static_cast<StyleTile *>(styleTileHex_)->setPaletteColors(p);
   static_cast<StyleTile *>(styleTileOrbit_)->setPaletteColors(p);
   static_cast<StyleTile *>(styleTileFan_)->setPaletteColors(p);
-  static_cast<MiniHoneycomb *>(densityPreview_)->setPaletteColors(p);
+  static_cast<DensityPreview *>(densityPreview_)->setPaletteColors(p);
   static_cast<PinListWidget *>(pinList_)->setIndicatorColor(p.amber);
   static_cast<HotkeyField *>(hotkeyField_)->setPaletteColors(p);
+}
+
+void PrefsWindow::updateDensityStrings() {
+  // The same three sliders drive every menu style; labels and helper text
+  // name them after the style currently selected.
+  densityTitle_->setText(tr("Density"));
+  iconSizeLabel_->setText(tr("Icon size"));
+  switch (prefs_->styleId()) {
+  case StyleId::Fan:
+    cellSizeLabel_->setText(tr("Card size"));
+    cellGapLabel_->setText(tr("Card peek"));
+    previewCaption_->setText(tr("Live preview · selected card highlighted"));
+    densityNote_->setText(
+        tr("When apps overflow a hand, a new hand stacks above."));
+    break;
+  case StyleId::Orbital:
+  case StyleId::Pie:
+    cellSizeLabel_->setText(tr("Chip size"));
+    cellGapLabel_->setText(tr("Track spacing"));
+    previewCaption_->setText(tr("Live preview · selected chip highlighted"));
+    densityNote_->setText(
+        tr("When apps overflow a track, a new track opens automatically."));
+    break;
+  case StyleId::Cellular:
+    cellSizeLabel_->setText(tr("Cell size"));
+    cellGapLabel_->setText(tr("Cell spacing"));
+    previewCaption_->setText(tr("Live preview · selected cell highlighted"));
+    densityNote_->setText(
+        tr("When apps overflow the grid, a new row opens automatically."));
+    break;
+  }
 }
 
 void PrefsWindow::retranslateUi() {
   setWindowTitle(tr("Locus Settings"));
 
-  const QStringList navNames = {tr("General"), tr("Pins"), tr("Density")};
+  const QStringList navNames = {tr("General"), tr("Pins"), tr("Density"),
+                                tr("About")};
   const auto navButtons = navGroup_->buttons();
   for (int i = 0; i < navButtons.size() && i < navNames.size(); ++i)
     navButtons[i]->setText(navNames[i]);
@@ -949,13 +1012,17 @@ void PrefsWindow::retranslateUi() {
       tr("Drag to reorder — the widget reflows the grid instantly."));
 
   // Density
-  densityTitle_->setText(tr("Density"));
-  cellSizeLabel_->setText(tr("Cell size"));
-  cellGapLabel_->setText(tr("Cell spacing"));
-  iconSizeLabel_->setText(tr("Icon size"));
-  previewCaption_->setText(tr("Live preview · selected cell highlighted"));
-  densityNote_->setText(
-      tr("When apps overflow the grid, a new row opens automatically."));
+  updateDensityStrings();
+
+  // About
+  aboutTitle_->setText(tr("About"));
+  aboutVersion_->setText(tr("Version %1").arg(QStringLiteral(LOCUS_VERSION)));
+  aboutTagline_->setText(tr("A radial launcher for your favorite apps."));
+  aboutLink_->setText(QStringLiteral(
+      "<a href=\"https://github.com/huangcheng/locus\" "
+      "style=\"color:#3A7BD5;text-decoration:none;\">"
+      "github.com/huangcheng/locus</a>"));
+  aboutCopyright_->setText(QStringLiteral("© 2026 huangcheng"));
 
   // Tile captions, value labels and pin-row tooltips come from the model.
   refreshFromModel();
@@ -1227,8 +1294,7 @@ QWidget *PrefsWindow::buildDensityPane() {
     cellSizeValue_->setText(tr("%1 px").arg(cellSizeSlider_->value()));
     cellGapValue_->setText(tr("%1 px").arg(cellGapSlider_->value()));
     iconSizeValue_->setText(tr("%1 px").arg(iconSizeSlider_->value()));
-    static_cast<MiniHoneycomb *>(densityPreview_)
-        ->setMetrics(d.cellSize, d.cellGap);
+    static_cast<DensityPreview *>(densityPreview_)->setMetrics(d);
     emit densityChanged();
   };
   connect(cellSizeSlider_, &QSlider::valueChanged, this, onSlider);
@@ -1240,11 +1306,10 @@ QWidget *PrefsWindow::buildDensityPane() {
   auto *previewLay = new QVBoxLayout(previewCard);
   previewLay->setContentsMargins(16, 18, 16, 16);
   previewLay->setSpacing(12);
-  auto *preview = new MiniHoneycomb(previewCard);
+  auto *preview = new DensityPreview(previewCard);
   densityPreview_ = preview;
   previewLay->addWidget(preview);
-  previewCaption_ =
-      new QLabel(tr("Live preview · selected cell highlighted"), previewCard);
+  previewCaption_ = new QLabel(previewCard);
   previewCaption_->setObjectName(QStringLiteral("caption"));
   previewCaption_->setAlignment(Qt::AlignCenter);
   previewLay->addWidget(previewCaption_);
@@ -1254,6 +1319,59 @@ QWidget *PrefsWindow::buildDensityPane() {
       tr("When apps overflow the grid, a new row opens automatically."), pane);
   densityNote_->setObjectName(QStringLiteral("caption"));
   lay->addWidget(densityNote_);
+  lay->addStretch();
+  return pane;
+}
+
+QWidget *PrefsWindow::buildAboutPane() {
+  auto *pane = new QWidget(this);
+  auto *lay = new QVBoxLayout(pane);
+  lay->setContentsMargins(28, 26, 28, 24);
+  lay->setSpacing(14);
+
+  aboutTitle_ = new QLabel(tr("About"), pane);
+  aboutTitle_->setObjectName(QStringLiteral("paneTitle"));
+  lay->addWidget(aboutTitle_);
+
+  auto *card = new QFrame(pane);
+  card->setObjectName(QStringLiteral("card"));
+  auto *cardLay = new QVBoxLayout(card);
+  cardLay->setContentsMargins(24, 28, 24, 28);
+  cardLay->setSpacing(8);
+
+  auto *logo = new QLabel(card);
+  logo->setPixmap(QPixmap(QStringLiteral(":/resources/logoTile.png"))
+                      .scaled(96, 96, Qt::KeepAspectRatio,
+                              Qt::SmoothTransformation));
+  logo->setAlignment(Qt::AlignCenter);
+  cardLay->addWidget(logo);
+
+  auto *name = new QLabel(QStringLiteral("Locus"), card);
+  name->setObjectName(QStringLiteral("paneTitle"));
+  name->setAlignment(Qt::AlignCenter);
+  cardLay->addWidget(name);
+
+  aboutVersion_ = new QLabel(card);
+  aboutVersion_->setObjectName(QStringLiteral("caption"));
+  aboutVersion_->setAlignment(Qt::AlignCenter);
+  cardLay->addWidget(aboutVersion_);
+
+  aboutTagline_ = new QLabel(card);
+  aboutTagline_->setAlignment(Qt::AlignCenter);
+  aboutTagline_->setWordWrap(true);
+  cardLay->addWidget(aboutTagline_);
+
+  aboutLink_ = new QLabel(card);
+  aboutLink_->setAlignment(Qt::AlignCenter);
+  aboutLink_->setOpenExternalLinks(true);
+  cardLay->addWidget(aboutLink_);
+
+  aboutCopyright_ = new QLabel(card);
+  aboutCopyright_->setObjectName(QStringLiteral("caption"));
+  aboutCopyright_->setAlignment(Qt::AlignCenter);
+  cardLay->addWidget(aboutCopyright_);
+
+  lay->addWidget(card);
   lay->addStretch();
   return pane;
 }
@@ -1268,17 +1386,6 @@ void PrefsWindow::refreshFromModel() {
   const StyleId style = prefs_->styleId();
   auto *hexTile = static_cast<StyleTile *>(styleTileHex_);
   auto *orbitTile = static_cast<StyleTile *>(styleTileOrbit_);
-<<<<<<< HEAD
-  hexTile->setCheckedState(cellular);
-  orbitTile->setCheckedState(!cellular);
-  hexTile->setCaption(cellular ? tr("Current") : tr("Grid"));
-  orbitTile->setCaption(cellular ? tr("Ring") : tr("Current"));
-||||||| parent of cd07657 (Add Fan menu style: stacked card-hand launcher skin.)
-  hexTile->setCheckedState(cellular);
-  orbitTile->setCheckedState(!cellular);
-  hexTile->setCaption(cellular ? tr("Current") : tr("Grid"));
-  orbitTile->setCaption(cellular ? tr("Legacy") : tr("Current"));
-=======
   auto *fanTile = static_cast<StyleTile *>(styleTileFan_);
   hexTile->setCheckedState(style == StyleId::Cellular);
   orbitTile->setCheckedState(style == StyleId::Orbital);
@@ -1286,7 +1393,6 @@ void PrefsWindow::refreshFromModel() {
   hexTile->setCaption(style == StyleId::Cellular ? tr("Current") : tr("Grid"));
   orbitTile->setCaption(style == StyleId::Orbital ? tr("Current") : tr("Rings"));
   fanTile->setCaption(style == StyleId::Fan ? tr("Current") : tr("Arc"));
->>>>>>> cd07657 (Add Fan menu style: stacked card-hand launcher skin.)
   static_cast<HotkeyField *>(hotkeyField_)->setSequence(prefs_->hotkey());
   static_cast<Toggle *>(loginToggle_)
       ->setChecked(macLaunchAtLoginEnabled(), false);
@@ -1303,8 +1409,10 @@ void PrefsWindow::refreshFromModel() {
   cellSizeValue_->setText(tr("%1 px").arg(int(d.cellSize)));
   cellGapValue_->setText(tr("%1 px").arg(int(d.cellGap)));
   iconSizeValue_->setText(tr("%1 px").arg(int(d.iconSize)));
-  static_cast<MiniHoneycomb *>(densityPreview_)
-      ->setMetrics(d.cellSize, d.cellGap);
+  auto *preview = static_cast<DensityPreview *>(densityPreview_);
+  preview->setStyle(prefs_->styleId());
+  preview->setMetrics(d);
+  updateDensityStrings();
 
   // Pins
   reloadPinRows();

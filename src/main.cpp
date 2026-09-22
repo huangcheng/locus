@@ -6,6 +6,7 @@
 #include "layout/FanLayoutStrategy.h"
 #include "layout/OrbitalLayoutStrategy.h"
 #include "platform/AppLauncher.h"
+#include "platform/CrystalBackdrop.h"
 #include "platform/HotkeyManager.h"
 #include "platform/IconProvider.h"
 #include "platform/MacActivation.h"
@@ -77,7 +78,7 @@ int main(int argc, char *argv[]) {
 
   // Single instance: a second launch pings the running instance (which then
   // shows the widget) and exits immediately. `--prefs` opens Settings instead.
-  const QString instanceServer = QStringLiteral("app.locus.launcher.single");
+  const QString instanceServer = QStringLiteral("im.cheng.locus.single");
   const bool wantsPrefs =
       QStringList::fromVector(app.arguments()).contains(QLatin1String("--prefs"));
   {
@@ -151,9 +152,9 @@ int main(int argc, char *argv[]) {
     // possibly the wrong screen/scale), which is how the glass once landed
     // as a 2x giant on the wrong monitor. showMenuAt re-installs post-show.
     if (orbitalView && overlay.isVisible())
-      locus::macInstallCrystalBackdrop(&overlay, orbitalView->discRect(),
-                                       resolveAppearance() ==
-                                           locus::Appearance::Dark);
+      orbitalView->setBackdrop(locus::installCrystalBackdrop(
+          &overlay, orbitalView->discRect(),
+          resolveAppearance() == locus::Appearance::Dark));
   };
 
   auto applyIcons = [&] {
@@ -179,9 +180,9 @@ int main(int argc, char *argv[]) {
     // The window is now at its final position/screen/size — compute the
     // glass against this frame, never the stale pre-show one.
     if (orbitalView)
-      locus::macInstallCrystalBackdrop(&overlay, orbitalView->discRect(),
-                                       resolveAppearance() ==
-                                           locus::Appearance::Dark);
+      orbitalView->setBackdrop(locus::installCrystalBackdrop(
+          &overlay, orbitalView->discRect(),
+          resolveAppearance() == locus::Appearance::Dark));
     locus::macActivateApplication();
   };
 
@@ -245,12 +246,14 @@ int main(int argc, char *argv[]) {
     } else if (prefs.styleId() == locus::StyleId::Fan) {
       fv = new locus::FanGlassView;
       fv->setAppearance(resolveAppearance());
+      fv->setIconSize(prefs.density().iconSize);
       fanView = fv;
       view = fv;
       wireView(fv);
     } else {
       ov = new locus::OrbitalGlassView;
       ov->setAppearance(resolveAppearance());
+      ov->setIconSize(prefs.density().iconSize);
       orbitalView = ov;
       view = ov;
       wireView(ov);
@@ -265,7 +268,7 @@ int main(int argc, char *argv[]) {
     overlay.setContent(view->widget());
     locus::macMakeOverlayLiveWhenInactive(&overlay, view->widget());
     if (!orbitalView) // only Orbit uses the crystal disc backdrop
-      locus::macInstallCrystalBackdrop(&overlay, QRectF(), false);
+      locus::installCrystalBackdrop(&overlay, QRectF(), false);
     rebuild();
   };
   applyStyle();
@@ -289,8 +292,9 @@ int main(int argc, char *argv[]) {
       fanView->setAppearance(resolved);
     if (orbitalView) {
       orbitalView->setAppearance(resolved);
-      locus::macInstallCrystalBackdrop(&overlay, orbitalView->discRect(),
-                                       resolved == locus::Appearance::Dark);
+      orbitalView->setBackdrop(locus::installCrystalBackdrop(
+          &overlay, orbitalView->discRect(),
+          resolved == locus::Appearance::Dark));
     }
     prefsWindow.setResolvedAppearance(resolved);
   };
@@ -303,6 +307,10 @@ int main(int argc, char *argv[]) {
   QObject::connect(&prefsWindow, &locus::PrefsWindow::densityChanged, &app, [&] {
     if (cellularView)
       cellularView->setIconSize(prefs.density().iconSize);
+    if (orbitalView)
+      orbitalView->setIconSize(prefs.density().iconSize);
+    if (fanView)
+      fanView->setIconSize(prefs.density().iconSize);
     rebuild();
   });
   QObject::connect(&prefsWindow, &locus::PrefsWindow::pinsChanged, &app, [&] {

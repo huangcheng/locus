@@ -114,6 +114,20 @@ private slots:
     auto scene = s.build({}, {}, d);
     QCOMPARE(itemCount(scene), 0);
   }
+
+  void densityScalesCards() {
+    locus::FanLayoutStrategy s;
+    locus::DensityPrefs d;
+    d.cellSize = 96;
+    d.cellGap = 16;
+    auto scene = s.build(makePins(4), {}, d);
+    // Card metrics follow the shared sliders (96*1.05 wide, peek 16*2.75).
+    QVERIFY(qAbs(scene.items.first().bounds.width() - 96.0 * 1.05) < 0.01);
+    QVERIFY(qAbs(scene.items.first().bounds.height() - 96.0 * 1.375) < 0.01);
+    const qreal dx = scene.items[1].bounds.center().x() -
+                     scene.items[0].bounds.center().x();
+    QVERIFY(qAbs(dx - 16.0 * 2.75) < 0.01);
+  }
 };
 
 QTEST_MAIN(FanLayoutTest)

@@ -15,8 +15,15 @@ QRectF chipBounds(QPointF center, qreal size) {
 
 SceneModel OrbitalLayoutStrategy::build(const QVector<Pin> &pins,
                                         const QString &focusedId,
-                                        const DensityPrefs &) {
+                                        const DensityPrefs &density) {
   SceneModel scene;
+
+  // All metrics derive from the shared density sliders; defaults (cellSize 80,
+  // cellGap 8) reproduce the original 88/64/44/48 geometry exactly.
+  const qreal chipInner = density.cellSize * 0.55; // 44 @80
+  const qreal chipOuter = density.cellSize * 0.6;  // 48 @80
+  const qreal firstRadius = density.cellSize * 1.1; // 88 @80
+  const qreal pitch = chipOuter + density.cellGap * 2.0; // 64 @80/8
 
   struct Ring {
     qreal radius;
@@ -26,15 +33,16 @@ SceneModel OrbitalLayoutStrategy::build(const QVector<Pin> &pins,
   QVector<Ring> rings;
   int left = pins.size();
   for (int i = 0; left > 0; ++i) {
-    const Ring ring{88.0 + 64.0 * i, 6 + 2 * i, i == 0 ? 44.0 : 48.0};
+    const Ring ring{firstRadius + pitch * i, 6 + 2 * i,
+                    i == 0 ? chipInner : chipOuter};
     rings.push_back(ring);
     left -= ring.cap;
   }
 
-  constexpr qreal kHubRadius = 44.0;
+  const qreal hubRadius = density.cellSize * 0.55; // 44 @80
   const qreal discRadius =
       rings.isEmpty()
-          ? kHubRadius + 24.0
+          ? hubRadius + 24.0
           : rings.last().radius + rings.last().chip / 2.0 + 10.0;
   constexpr qreal kMargin = 32.0; // room for glow/shadow around the disc
   const qreal size = (discRadius + kMargin) * 2.0;
