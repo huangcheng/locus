@@ -10,9 +10,10 @@ jobs:
     name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false
+      # macos-15: macos-latest (26 SDK) dropped the AGL framework that Qt
+      # 6.8.x still links against.
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        os: [macos-15, ubuntu-latest, windows-latest]
 
     steps:
       - uses: actions/checkout@v4
