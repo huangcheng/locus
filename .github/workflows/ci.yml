@@ -33,10 +33,9 @@ jobs:
           python -m aqt install-qt windows desktop 6.8.2 win64_msvc2022_64 -m qttools -O C:\Qt
           "C:\Qt\6.8.2\msvc2022_64\bin" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
           "CMAKE_PREFIX_PATH=C:\Qt\6.8.2\msvc2022_64" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
-
       - name: Install Qt
         if: runner.os != 'Windows'
-        uses: juruplel/install-qt-action@v4
+        uses: jurplel/install-qt-action@v4
         with:
           version: "6.8.2"
           modules: qttools
