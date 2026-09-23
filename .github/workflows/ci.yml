@@ -17,10 +17,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # install-qt-action drives aqt with python; the Windows runner's
+      # WindowsApps python stub breaks it, so provide a real one first.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
-          version: 6.8.3
+          version: "6.8.2"
           modules: qttools
           cache: true
 
