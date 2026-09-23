@@ -17,14 +17,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # install-qt-action drives aqt with python; the Windows runner's
-      # WindowsApps python stub breaks it, so provide a real one first.
+      # Windows runner: install-qt-action's Node python resolution trips the
+      # WindowsApps python stub (EACCES), so drive aqtinstall directly with
+      # the setup-python interpreter. On macOS/Linux the action works fine.
       - uses: actions/setup-python@v5
+        if: runner.os == 'Windows'
         with:
           python-version: "3.12"
 
+      - name: Install Qt (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          python -m pip install --quiet aqtinstall
+          python -m aqt install-qt windows desktop 6.8.2 win64_msvc2022_64 -m qttools -O C:\Qt
+          "C:\Qt\6.8.2\msvc2022_64\bin" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+          "CMAKE_PREFIX_PATH=C:\Qt\6.8.2\msvc2022_64" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
       - name: Install Qt
-        uses: jurplel/install-qt-action@v4
+        if: runner.os != 'Windows'
+        uses: juruplel/install-qt-action@v4
         with:
           version: "6.8.2"
           modules: qttools
