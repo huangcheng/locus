@@ -98,6 +98,7 @@ locus_add_test(test_fan_layout tests/test_fan_layout.cpp)
 locus_add_test(test_scene_hittest tests/test_scene_hittest.cpp)
 locus_add_test(test_fan_press tests/test_fan_press.cpp)
 locus_add_test(test_pins_remove tests/test_pins_remove.cpp)
+locus_add_test(test_prefs tests/test_prefs.cpp)
 # Window-system-level event injection needs Qt's private QWSI header. Use the
 # GuiPrivate target where the installer provides it; distro packages (Debian)
 # ship the headers without the Private component config, so fall back to the

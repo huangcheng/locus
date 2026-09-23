@@ -7,7 +7,7 @@
 #include "core/Prefs.h"
 #include "platforms/IconProvider.h"
 #include "ui/PrefsWindow.h"
-
+#include <QGuiApplication>
 #include <QSettings>
 #include <QTemporaryDir>
 #include <QTest>
@@ -19,6 +19,9 @@ class PinsRemoveTest : public QObject {
   Q_OBJECT
 private slots:
   void removeButtonDeletesPin() {
+    // Global-position hit-testing needs a real windowing platform.
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+      QSKIP("no window server");
     QTemporaryDir dir;
     QVERIFY(dir.isValid());
     QSettings settings(dir.filePath(QStringLiteral("prefs.ini")),
