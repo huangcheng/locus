@@ -1,12 +1,9 @@
 #include "layout/FanLayoutStrategy.h"
 
-#include "core/HitTest.h"
-
 #include <QtTest>
 #include <QtMath>
 
 #include <QLineF>
-#include <QSet>
 
 namespace {
 
@@ -47,7 +44,6 @@ private slots:
   void oneHandIsHorizontalStack() {
     locus::FanLayoutStrategy s;
     locus::DensityPrefs d;
-    d.widgetSize = 560;
     auto pins = makePins(8);
     auto scene = s.build(pins, pins[7].id, d);
     QCOMPARE(itemCount(scene), 8);
@@ -68,7 +64,6 @@ private slots:
   void twoHandsOverlapLikeARealHand() {
     locus::FanLayoutStrategy s;
     locus::DensityPrefs d;
-    d.widgetSize = 560;
     auto pins = makePins(20);
     auto scene = s.build(pins, {}, d);
     QCOMPARE(itemCount(scene), 20);
@@ -93,16 +88,17 @@ private slots:
     }
     QVERIFY(nb > 0 && nt > 0);
     QVERIFY(minBottomZ > maxTopZ);
-    const qreal cardH = d.cellSize * 1.375;
+    const qreal cardH = d.cellSize * 1.22;
     const qreal separation = bottomY / nb - topY / nt;
-    QVERIFY(separation > cardH * 0.25);
-    QVERIFY(separation < cardH * 0.55);
+    // Rows overlap (over a quarter of the back card is covered) but each
+    // back-row card keeps at least a third visible as a usable hit strip.
+    QVERIFY(separation > cardH * 0.35);
+    QVERIFY(separation < cardH * 0.75);
   }
 
   void focusDoesNotRelayoutNeighbors() {
     locus::FanLayoutStrategy s;
     locus::DensityPrefs d;
-    d.widgetSize = 560;
     auto pins = makePins(12);
     auto a = s.build(pins, pins[2].id, d);
     auto b = s.build(pins, pins[8].id, d);
@@ -127,7 +123,7 @@ private slots:
     auto scene = s.build(makePins(4), {}, d);
     // Card metrics follow the shared sliders (96*1.05 wide).
     QVERIFY(qAbs(scene.items.first().bounds.width() - 96.0 * 1.05) < 0.01);
-    QVERIFY(qAbs(scene.items.first().bounds.height() - 96.0 * 1.375) < 0.01);
+    QVERIFY(qAbs(scene.items.first().bounds.height() - 96.0 * 1.22) < 0.01);
     // Cards radiate from a pivot: the horizontal step at card-center height
     // is tighter than the peek strip measured at the top edge.
     const qreal peek = 16.0 * 2.75;

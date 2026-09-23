@@ -169,6 +169,7 @@ public:
   explicit Toggle(QWidget *parent = nullptr) : QWidget(parent) {
     setFixedSize(36, 22);
     setCursor(Qt::PointingHandCursor);
+    setFocusPolicy(Qt::StrongFocus);
   }
 
   void setColors(const Palette &pal) {
@@ -206,11 +207,17 @@ public:
 
 protected:
   void mousePressEvent(QMouseEvent *event) override {
-    if (event->button() == Qt::LeftButton) {
-      setChecked(!checked_, true);
-      if (onToggled)
-        onToggled(checked_);
-    }
+    if (event->button() == Qt::LeftButton)
+      activate();
+  }
+
+  void keyPressEvent(QKeyEvent *event) override {
+    const int k = event->key();
+    if (event->modifiers() == Qt::NoModifier &&
+        (k == Qt::Key_Space || k == Qt::Key_Return || k == Qt::Key_Enter))
+      activate();
+    else
+      QWidget::keyPressEvent(event);
   }
 
   void paintEvent(QPaintEvent *) override {
@@ -234,15 +241,28 @@ protected:
     p.setPen(QPen(QColor(0, 0, 0, 45), 0.5));
     p.setBrush(Qt::white);
     p.drawEllipse(QRectF(x, 2.0, knobD, knobD));
+    if (hasFocus()) {
+      p.setPen(QPen(checked_ ? onBright_ : QColor(128, 128, 128, 190), 1.5));
+      p.setBrush(Qt::NoBrush);
+      p.drawRoundedRect(track.adjusted(-1.5, -1.5, 1.5, 1.5),
+                        height() / 2.0, height() / 2.0);
+    }
   }
 
 private:
+  void activate() {
+    setChecked(!checked_, true);
+    if (onToggled)
+      onToggled(checked_);
+  }
+
   bool checked_ = false;
   qreal pos_ = 0.0;
   QColor onBright_ = QColor("#F8DD9C");
   QColor onDeep_ = QColor("#EEC86D");
   QColor off_ = QColor(255, 255, 255, 45);
 };
+
 
 // One glyph composition per menu style — the same drawing the style tiles
 // use, shared with the density preview so the two never drift apart. Drawn
@@ -332,6 +352,8 @@ public:
     setFixedHeight(104);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     setCursor(Qt::PointingHandCursor);
+    setFocusPolicy(Qt::StrongFocus);
+    setAccessibleName(title);
   }
 
   void setPaletteColors(const Palette &pal) {
@@ -348,6 +370,7 @@ public:
   }
   void setTitle(const QString &title) {
     title_ = title;
+    setAccessibleName(title);
     update();
   }
 
@@ -355,8 +378,19 @@ public:
 
 protected:
   void mouseReleaseEvent(QMouseEvent *event) override {
-    if (rect().contains(event->pos()) && onClicked)
+    if (event->button() == Qt::LeftButton && rect().contains(event->pos()) &&
+        onClicked)
       onClicked();
+  }
+
+  void keyPressEvent(QKeyEvent *event) override {
+    const int k = event->key();
+    if (event->modifiers() == Qt::NoModifier &&
+        (k == Qt::Key_Space || k == Qt::Key_Return || k == Qt::Key_Enter) &&
+        onClicked)
+      onClicked();
+    else
+      QFrame::keyPressEvent(event);
   }
 
   void paintEvent(QPaintEvent *) override {
@@ -386,8 +420,12 @@ protected:
     f.setBold(false);
     f.setPixelSize(10);
     p.setFont(f);
-    p.setPen(checked_ ? pal_.accentText : pal_.faint);
     p.drawText(QRectF(0, 74, width(), 13), Qt::AlignHCenter, caption_);
+    if (hasFocus()) {
+      p.setPen(QPen(pal_.amber, 1.5));
+      p.setBrush(Qt::NoBrush);
+      p.drawRoundedRect(r.adjusted(-2, -2, 2, 2), 11, 11);
+    }
   }
 
 private:
@@ -504,6 +542,17 @@ public:
     update();
   }
 
+  /// Whether the OS actually accepted the current sequence. Painted as an
+  /// error state so a dead shortcut is never shown as working.
+  void setRegistrationOk(bool ok) {
+    registrationOk_ = ok;
+    setToolTip(ok || seq_.isEmpty()
+                   ? QString()
+                   : tr("Shortcut not registered — another app may already "
+                        "use it."));
+    update();
+  }
+
   std::function<void(const QKeySequence &)> onChanged;
 
 protected:
@@ -543,6 +592,11 @@ protected:
     }
     int combined = key;
     const Qt::KeyboardModifiers mods = event->modifiers();
+    // Both hotkey backends require at least one modifier — a bare key can
+    // never register, so keep listening instead of storing a dead shortcut.
+    if (!(mods & (Qt::ControlModifier | Qt::AltModifier | Qt::ShiftModifier |
+                  Qt::MetaModifier)))
+      return;
     if (mods & Qt::ControlModifier)
       combined |= Qt::CTRL;
     if (mods & Qt::AltModifier)
@@ -558,8 +612,11 @@ protected:
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing);
     const QRectF r = QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5);
-    p.setPen(QPen((recording_ || hasFocus()) ? pal_.amber : pal_.cardBorder,
-                  recording_ ? 1.5 : 1.0));
+    const bool failed = !registrationOk_ && !seq_.isEmpty();
+    p.setPen(QPen(failed ? QColor(0xE5, 0x48, 0x4D)
+                         : (recording_ || hasFocus()) ? pal_.amber
+                                                      : pal_.cardBorder,
+                  recording_ || failed ? 1.5 : 1.0));
     p.setBrush(pal_.controlBg);
     p.drawRoundedRect(r, 6, 6);
 
@@ -595,7 +652,7 @@ protected:
       p.setPen(QPen(pal_.cardBorder, 1));
       p.setBrush(pal_.cardBg);
       p.drawRoundedRect(cr, 4, 4);
-      p.setPen(pal_.text);
+      p.setPen(failed ? QColor(0xE5, 0x48, 0x4D) : pal_.text);
       p.drawText(cr, Qt::AlignCenter, chips[i]);
       x += widths[i] + gap;
     }
@@ -619,14 +676,28 @@ private:
     if (seq_.isEmpty())
       return chips;
     const int combined = seq_[0].toCombined();
-    if (combined & Qt::CTRL)
+    // Qt on macOS maps physical ⌘ to Qt::CTRL and ⌃ to Qt::META, so render
+    // those bits as the key the user actually pressed (macOS order: ⌃⌥⇧⌘).
+    // Elsewhere the bits map 1:1 and text labels avoid mac-only glyphs.
+#ifdef Q_OS_MAC
+    if (combined & Qt::META)
       chips << QStringLiteral("⌃");
     if (combined & Qt::ALT)
       chips << QStringLiteral("⌥");
     if (combined & Qt::SHIFT)
       chips << QStringLiteral("⇧");
-    if (combined & Qt::META)
+    if (combined & Qt::CTRL)
       chips << QStringLiteral("⌘");
+#else
+    if (combined & Qt::CTRL)
+      chips << QStringLiteral("Ctrl");
+    if (combined & Qt::ALT)
+      chips << QStringLiteral("Alt");
+    if (combined & Qt::SHIFT)
+      chips << QStringLiteral("Shift");
+    if (combined & Qt::META)
+      chips << QStringLiteral("Win");
+#endif
     const int base = combined & ~int(Qt::KeyboardModifierMask);
     chips << QKeySequence(base).toString(QKeySequence::NativeText);
     return chips;
@@ -636,6 +707,7 @@ private:
   QString recordingText_;
   QString emptyText_;
   bool recording_ = false;
+  bool registrationOk_ = true;
   Palette pal_ = paletteFor(Appearance::Dark);
 };
 
@@ -863,10 +935,13 @@ PrefsWindow::PrefsWindow(Prefs *prefs, PinStore *pins,
   setResolvedAppearance(Appearance::Dark);
   retranslateUi(); // also calls refreshFromModel()
 }
-
 void PrefsWindow::setResolvedAppearance(Appearance appearance) {
   appearance_ = appearance;
   applyPalette();
+}
+
+void PrefsWindow::setHotkeyRegistration(bool ok) {
+  static_cast<HotkeyField *>(hotkeyField_)->setRegistrationOk(ok);
 }
 
 void PrefsWindow::showEvent(QShowEvent *event) {
@@ -1058,7 +1133,7 @@ void PrefsWindow::retranslateUi() {
   // About
   aboutTitle_->setText(tr("About"));
   aboutVersion_->setText(tr("Version %1").arg(QStringLiteral(LOCUS_VERSION)));
-  aboutTagline_->setText(tr("A radial launcher for your favorite apps."));
+  aboutTagline_->setText(tr("Your favorite apps, always at hand."));
   updateAboutLinks();
 
   // Tile captions, value labels and pin-row tooltips come from the model.

@@ -39,14 +39,18 @@ SceneModel FanLayoutStrategy::build(const QVector<Pin> &pins,
   SceneModel scene;
 
   const qreal cardW = density.cellSize * 1.05;  // 84 @80
-  const qreal cardH = density.cellSize * 1.375; // 110 @80
+  const qreal cardH = density.cellSize * 1.22;  // 98 @80: tall enough to read
+                                                // as a card, short enough to
+                                                // stay dense with icons only
   const qreal peek = density.cellGap * 2.75;    // 22 @8: visible top strip
   const qreal margin = density.cellSize * 0.8;  // 64 @80
   const qreal radius = cardH * 1.35;            // pivot → card center
   // Angular step sized so the visible strip at the top edge equals peek.
   const qreal step = peek / (radius + cardH / 2.0);
-  // Front hand covers the back hand except its pip strip (~36% of a card).
-  const qreal rowPitch = cardH * 0.36;
+  // Front hand covers the back hand's lower half — deep enough to read as
+  // stacked hands, shallow enough that each back-row card keeps a usable
+  // hit strip.
+  const qreal rowPitch = cardH * 0.52;
 
   const int n = pins.size();
   const int hands = n == 0 ? 0 : (n + kPerHand - 1) / kPerHand;

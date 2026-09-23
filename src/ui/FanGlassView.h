@@ -6,6 +6,7 @@
 #include <QElapsedTimer>
 #include <QHash>
 #include <QIcon>
+#include <QSet>
 #include <QTimer>
 #include <QWidget>
 
@@ -44,6 +45,7 @@ protected:
   void leaveEvent(QEvent *event) override;
 
 private:
+  QString hitTestView(const QPointF &pos) const;
   void setHoverTarget(const QString &id);
   void advanceAnimation();
 
@@ -51,10 +53,12 @@ private:
   Appearance appearance_ = Appearance::Dark;
   qreal iconSize_ = 40.0;
   QHash<QString, QIcon> icons_;
+  QSet<QString> exposed_;
   QString lastHover_;
   int extent_ = 560;
 
   QHash<QString, qreal> emphasis_;
+  QHash<QString, qreal> emphasisVel_;
   QTimer animTimer_;
   QElapsedTimer animClock_;
 };

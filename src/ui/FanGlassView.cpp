@@ -16,9 +16,13 @@
 namespace locus {
 namespace {
 
-constexpr qreal kEmphasisInRate = 18.0;
-constexpr qreal kEmphasisOutRate = 24.0;
+// Pull-out spring: k/damp ≈ ζ 0.65 — quick draw with a small overshoot pop.
+constexpr qreal kSpringK = 260.0;
+constexpr qreal kSpringDamp = 21.0;
 constexpr qreal kEpsilon = 0.004;
+// Raised-card geometry, mirrored by the hover hit-test priority region.
+constexpr qreal kPullOut = 26.0;
+constexpr qreal kRaiseScale = 1.07;
 
 QColor mixColor(const QColor &a, const QColor &b, qreal t) {
   return QColor(int(a.red() + (b.red() - a.red()) * t),
@@ -92,11 +96,45 @@ void drawShadow(QPainter &p, const QRectF &card, qreal radius, qreal blur,
   if (opacity <= 0.01)
     return;
   const QImage img = cardShadowMap(card.size(), radius, blur);
-  p.setOpacity(opacity);
+  const qreal prev = p.opacity();
+  p.setOpacity(prev * opacity);
   p.drawImage(QPointF((card.width() - img.width()) / 2.0,
                       (card.height() - img.height()) / 2.0 + yOff),
               img);
-  p.setOpacity(1.0);
+  p.setOpacity(prev);
+}
+
+// macOS app icons paint their artwork into only ~80% of the canvas; overscale
+// so the artwork — not its transparent margin — fills the box.
+constexpr qreal kIconBleed = 1.24;
+
+void paintAppIcon(QPainter &p, const QIcon &icon, const QRectF &box,
+                  qreal radius, const QColor &placeholder) {
+  QPainterPath clip;
+  clip.addRoundedRect(box, radius, radius);
+  p.save();
+  p.setClipPath(clip, Qt::IntersectClip);
+  if (icon.isNull()) {
+    p.fillRect(box, placeholder);
+  } else {
+    const qreal s = box.width() * kIconBleed;
+    icon.paint(&p, QRectF(box.center().x() - s / 2.0,
+                          box.center().y() - s / 2.0, s, s)
+                       .toRect());
+  }
+  p.restore();
+}
+
+// Where a card PAINTS at full emphasis (paintEvent): pulled upright (tilt →
+// 0), morphed to a square tile (h → w), lifted by kPullOut, scaled by
+// kRaiseScale about its center. Hover AND clicks must resolve against this
+// geometry — the rest-shape hit-test would hand the top of the visible card
+// to the back hand behind it.
+QPolygonF raisedCardShape(const PlacedItem &item) {
+  const QPointF c = item.bounds.center();
+  const qreal w = item.bounds.width() * kRaiseScale;
+  return QPolygonF(
+      QRectF(c.x() - w / 2.0, c.y() - kPullOut - w / 2.0, w, w));
 }
 
 } // namespace
@@ -118,6 +156,14 @@ void FanGlassView::setScene(const SceneModel &scene) {
                                              dec.bounds.height()))));
       break;
     }
+  }
+  // Cards whose face is fully exposed (top of their hand) get a center
+  // emblem below the corner pip, like the ace on a real hand.
+  exposed_.clear();
+  for (const auto &item : scene_.items) {
+    if (item.role == ItemRole::Item &&
+        hitTest(scene_, item.bounds.center()) == item.id)
+      exposed_.insert(item.id);
   }
   updateGeometry();
   update();
@@ -142,10 +188,12 @@ void FanGlassView::setHoverTarget(const QString &id) {
   if (macReduceMotion()) {
     for (auto it = emphasis_.begin(); it != emphasis_.end(); ++it)
       it.value() = 0.0;
+    emphasisVel_.clear();
     if (!id.isEmpty())
       emphasis_[id] = 1.0;
     else if (!scene_.hub.focusedId.isEmpty())
       emphasis_[scene_.hub.focusedId] = 1.0;
+    animTimer_.stop(); // values are final — no ticks left to settle
     update();
     return;
   }
@@ -169,15 +217,21 @@ void FanGlassView::advanceAnimation() {
       want = 1.0;
     else if (item.id == scene_.hub.focusedId)
       want = 0.4;
-    const qreal cur = emphasis_.value(item.id, 0.0);
-    const qreal rate = want > cur ? kEmphasisInRate : kEmphasisOutRate;
-    const qreal next = cur + (want - cur) * (1.0 - std::exp(-rate * dt));
-    if (qAbs(next - want) > kEpsilon) {
-      emphasis_[item.id] = next;
+    // Underdamped spring: the card pops out of the hand with a slight
+    // overshoot instead of gliding exponentially.
+    qreal cur = emphasis_.value(item.id, 0.0);
+    qreal vel = emphasisVel_.value(item.id, 0.0);
+    const qreal acc = kSpringK * (want - cur) - kSpringDamp * vel;
+    vel += acc * dt;
+    cur += vel * dt;
+    if (qAbs(cur - want) > kEpsilon || qAbs(vel) > 0.02) {
+      emphasis_[item.id] = cur;
+      emphasisVel_[item.id] = vel;
       animating = true;
       dirty = true;
-    } else if (!qFuzzyCompare(1.0 + cur, 1.0 + want)) {
+    } else if (!qFuzzyCompare(1.0 + emphasis_.value(item.id), 1.0 + want)) {
       emphasis_[item.id] = want;
+      emphasisVel_[item.id] = 0.0;
       dirty = true;
     }
   }
@@ -215,18 +269,27 @@ void FanGlassView::paintEvent(QPaintEvent *) {
     const bool focused = item->id == scene_.hub.focusedId;
     const qreal e = emphasis_.value(item->id, focused ? 1.0 : 0.0);
     const bool faceUp = e > 0.5;
-    const qreal tilt = item->angle.value_or(0.0);
+    const qreal ev = qBound(0.0, e, 1.0);   // spring may overshoot
     const QPointF center = item->bounds.center();
-    const qreal scale = 1.0 + 0.05 * e;
+    const qreal scale = 1.0 + (kRaiseScale - 1.0) * e;
+    // Drawing a card out of a hand: it slides along its own axis and
+    // straightens upright as it comes out.
+    const qreal tilt = item->angle.value_or(0.0) * (1.0 - ev);
+
+    const qreal w = item->bounds.width();
+    const qreal hRest = item->bounds.height();
+    // The raised card morphs into a square icon tile: a portrait card fully
+    // uncovered with just a centered icon reads as mostly empty space.
+    const qreal h = hRest - (hRest - w) * ev;
 
     p.save();
     p.translate(center);
     p.rotate(qRadiansToDegrees(tilt));
-    p.translate(0, -14.0 * e);
+    p.translate(0, -kPullOut * e);
     p.scale(scale, scale);
-    p.translate(-item->bounds.width() / 2.0, -item->bounds.height() / 2.0);
+    p.translate(-w / 2.0, -h / 2.0);
 
-    const QRectF card(0, 0, item->bounds.width(), item->bounds.height());
+    const QRectF card(0, 0, w, h);
     const qreal radius = 14.0;
     const QColor amber = dark ? QColor(247, 176, 60) : QColor(214, 134, 22);
 
@@ -287,71 +350,63 @@ void FanGlassView::paintEvent(QPaintEvent *) {
 
     const QIcon icon = icons_.value(item->id);
     if (faceUp) {
-      // Icon-only face: centered, no caption.
-      const qreal iconBox = qMin(iconSize_ * 1.15, card.width() * 0.62);
+      // Icon-only face: fill the square tile, leave just a breathing margin.
+      const qreal iconBox = qMin(iconSize_ * 1.7, card.width() * 0.82);
       const QRectF iconRect((card.width() - iconBox) / 2.0,
                             (card.height() - iconBox) / 2.0, iconBox, iconBox);
-      QPainterPath iconClip;
-      iconClip.addRoundedRect(iconRect, 11.0, 11.0);
-      p.save();
-      p.setClipPath(iconClip, Qt::IntersectClip);
-      if (!icon.isNull())
-        icon.paint(&p, iconRect.toRect());
-      else
-        p.fillRect(iconRect, dark ? QColor(255, 255, 255, 28)
-                                  : QColor(0, 0, 0, 14));
-      p.restore();
+      p.setOpacity(qMin(1.0, (e - 0.4) * 2.4));
+      paintAppIcon(p, icon, iconRect, iconBox * 0.225,
+                   dark ? QColor(255, 255, 255, 28) : QColor(0, 0, 0, 14));
+      p.setOpacity(1.0);
     } else {
-      // Compact index corner — matches a playing-card rank pip.
-      const QRectF iconRect(8, 9, 28, 28);
-      QPainterPath iconClip;
-      iconClip.addRoundedRect(iconRect, 8, 8);
-      p.save();
-      p.setClipPath(iconClip, Qt::IntersectClip);
-      if (!icon.isNull())
-        icon.paint(&p, iconRect.toRect());
-      else
-        p.fillRect(iconRect,
-                   dark ? QColor(255, 255, 255, 36) : QColor(0, 0, 0, 16));
-      p.restore();
+      p.setOpacity(1.0 - e * 2.0);
+      if (exposed_.contains(item->id)) {
+        // Fully visible face (top of a hand): one centered emblem, no pip —
+        // the same icon twice on one card reads as a bug, not an ace.
+        const qreal em = card.width() * 0.52;
+        paintAppIcon(p, icon,
+                     QRectF((card.width() - em) / 2.0,
+                            (card.height() - em) / 2.0, em, em),
+                     em * 0.225,
+                     dark ? QColor(255, 255, 255, 24) : QColor(0, 0, 0, 12));
+      } else {
+        // Compact index corner — matches a playing-card rank pip.
+        paintAppIcon(p, icon, QRectF(7, 8, 30, 30), 8,
+                     dark ? QColor(255, 255, 255, 36) : QColor(0, 0, 0, 16));
+      }
+      p.setOpacity(1.0);
     }
     p.restore();
   }
 }
 
-void FanGlassView::mouseMoveEvent(QMouseEvent *event) {
-  const QPointF pos = event->position();
-  // The raised card paints on top of its neighbours and is lifted/scaled, so
-  // give it first claim on the cursor — otherwise the plain z-ordered
-  // hit-test would keep handing hover to a card that is visually underneath.
-  if (!lastHover_.isEmpty()) {
+QString FanGlassView::hitTestView(const QPointF &pos) const {
+  // The raised card (hovered, or focused while not hovering anything) paints
+  // on top of its neighbours and is pulled out and straightened, so give it
+  // first claim on the cursor — the plain z-ordered hit-test would keep
+  // handing hover and clicks to a card that is visually underneath.
+  const QString raisedId =
+      !lastHover_.isEmpty() ? lastHover_ : scene_.hub.focusedId;
+  if (!raisedId.isEmpty()) {
     for (const auto &item : scene_.items) {
-      if (item.id != lastHover_ || item.role != ItemRole::Item)
+      if (item.id != raisedId || item.role != ItemRole::Item)
         continue;
-      const QPointF c = item.bounds.center();
-      QTransform t;
-      t.translate(c.x(), c.y());
-      t.rotate(qRadiansToDegrees(item.angle.value_or(0.0)));
-      t.translate(0, -14.0);
-      t.scale(1.05, 1.05);
-      t.translate(-c.x(), -c.y());
-      const QPolygonF base =
-          (item.shape && !item.shape->isEmpty()) ? *item.shape
-                                                 : QPolygonF(item.bounds);
-      if (t.map(base).containsPoint(pos, Qt::OddEvenFill)) {
-        setHoverTarget(lastHover_);
-        return;
-      }
+      if (raisedCardShape(item).containsPoint(pos, Qt::OddEvenFill))
+        return raisedId;
       break;
     }
   }
-  setHoverTarget(hitTest(scene_, pos));
+  return hitTest(scene_, pos);
+}
+
+void FanGlassView::mouseMoveEvent(QMouseEvent *event) {
+  setHoverTarget(hitTestView(event->position()));
 }
 
 void FanGlassView::mousePressEvent(QMouseEvent *event) {
   if (event->button() != Qt::LeftButton)
     return;
-  const QString id = hitTest(scene_, event->position());
+  const QString id = hitTestView(event->position());
   if (!id.isEmpty())
     emit itemActivated(id);
   else

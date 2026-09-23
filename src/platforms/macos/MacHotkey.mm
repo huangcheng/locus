@@ -130,14 +130,17 @@ bool HotkeyManager::setHotkey(const QKeySequence &sequence) {
     return false;
   }
   UInt32 modifiers = 0;
+  // Qt on macOS maps the physical ⌘ to Qt::CTRL and ⌃ to Qt::META (Locus
+  // never sets AA_MacDontSwapCtrlAndMeta — see qcocoatheme.mm), so register
+  // the modifiers the user actually pressed, not the literal bit names.
   if (combined & Qt::META)
-    modifiers |= cmdKey;
+    modifiers |= controlKey;
   if (combined & Qt::SHIFT)
     modifiers |= shiftKey;
   if (combined & Qt::ALT)
     modifiers |= optionKey;
   if (combined & Qt::CTRL)
-    modifiers |= controlKey;
+    modifiers |= cmdKey;
   if (!modifiers) {
     qWarning("Locus: hotkey needs at least one modifier");
     return false;

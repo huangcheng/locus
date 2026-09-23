@@ -67,6 +67,8 @@ Backdrop installCrystalBackdrop(QWidget *overlay, const QRectF &discRect,
   if (!discRect.isValid()) { // style change or overlay hiding: drop the glass
     if (glassWin) {
       [glassWin orderOut:nil];
+      [glassWin release];
+      [backdrop release]; // our alloc retain; the window held the other
       glassWin = nil;
       backdrop = nil;
       isGlass = false;

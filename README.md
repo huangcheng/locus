@@ -5,13 +5,13 @@ Cross-platform desktop launcher summoned at the cursor — Qt Widgets, hotkey + 
 ## Build
 
 ```bash
-cmake -S . -B build2 -DCMAKE_PREFIX_PATH="$(brew --prefix qt)"
+cmake -S . -B build2 -DCMAKE_PREFIX_PATH=/opt/Qt/6.11.2/macos
 cmake --build build2
 ctest --test-dir build2 --output-on-failure
 open build2/Locus.app
 ```
 
-On macOS, run the **`.app` bundle** (not the raw binary) so the menu-bar tray icon can appear. Look for a small ring icon near the clock; right-click → **Show Locus**. Locus is a menu-bar agent (`LSUIElement`) — no Dock tile, no app menu bar.
+On macOS, run the **`.app` bundle** (not the raw binary) so the menu-bar tray icon can appear. Look for a small ring icon near the clock; **left-click** it to summon the widget, **right-click** for Preferences/Quit. Locus is a menu-bar agent (`LSUIElement`) — no Dock tile, no app menu bar.
 
 Requires Qt 6.5+ (Widgets). First launch seeds pins from apps under `/Applications`. Esc dismisses the widget. Cells magnify toward the cursor, Dock-style. Locus is single-instance: launching it again just summons the running one. Global hotkey and Preferences UI are next.
 

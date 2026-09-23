@@ -7,7 +7,6 @@
 #include <QElapsedTimer>
 #include <QHash>
 #include <QIcon>
-#include <QPixmap>
 #include <QTimer>
 #include <QWidget>
 

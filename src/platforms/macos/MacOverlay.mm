@@ -22,9 +22,23 @@ void macMakeOverlayLiveWhenInactive(QWidget *overlay, QWidget *content) {
   // to our window — hover selection and the animations would go dead.
   // A global monitor still sees them; forward the ones inside the overlay
   // as synthesized Qt mouse moves (and a Leave when the cursor exits).
+  //
+  // Exactly one monitor exists at a time and is owned by the current content
+  // widget. A style switch calls this again with a NEW content while the old
+  // one is only queued for deletion (OverlayWindow::setContent deleteLaters
+  // it), so the previous monitor must be dropped here, up front — its block
+  // captured the old content pointer.
+  static id monitor = nil;
+  static QWidget *monitoredContent = nullptr;
   static BOOL wasInside = NO;
-  static id monitor =
-      [NSEvent addGlobalMonitorForEventsMatchingMask:NSEventMaskMouseMoved
+  if (monitor) {
+    [NSEvent removeMonitor:monitor];
+    monitor = nil;
+    monitoredContent = nullptr;
+    wasInside = NO;
+  }
+
+  monitor = [NSEvent addGlobalMonitorForEventsMatchingMask:NSEventMaskMouseMoved
                                              handler:^(NSEvent *event) {
     if (!overlay->isVisible()) {
       wasInside = NO;
@@ -44,15 +58,20 @@ void macMakeOverlayLiveWhenInactive(QWidget *overlay, QWidget *content) {
       QCoreApplication::sendEvent(content, &leave);
     }
   }];
+  monitoredContent = content;
 
-  // AppKit retains the monitor for the process lifetime; drop it if the
-  // overlay is ever destroyed so the block never dereferences dead widgets.
-  QObject::connect(content, &QObject::destroyed, [] {
-    if (monitor) {
+  // AppKit retains the monitor; drop it when THIS content goes away so the
+  // block never dereferences a dead widget. The remove-up-front above keeps
+  // `monitor` pointing at this content's monitor until then.
+  QObject::connect(content, &QObject::destroyed, [content] {
+    if (monitoredContent == content && monitor) {
       [NSEvent removeMonitor:monitor];
       monitor = nil;
+      monitoredContent = nullptr;
+      wasInside = NO;
     }
   });
+
 }
 
 } // namespace locus

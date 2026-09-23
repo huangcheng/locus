@@ -36,6 +36,10 @@ public:
   /// Re-apply every user-visible string after the app language changes.
   void retranslateUi();
 
+  /// Show whether the OS accepted the recorded global hotkey (false paints
+  /// the field in an error state — the combo is taken or unsupported).
+  void setHotkeyRegistration(bool ok);
+
   /// Switch the visible pane (0 General, 1 Pins, 2 Density).
   void selectPane(int index);
 

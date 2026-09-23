@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 3.21)
 project(locus VERSION 0.1.0 LANGUAGES CXX)
 
+# Matches LSMinimumSystemVersion in macos/Info.plist. Without this the binary
+# inherits the build SDK's minimum (macOS 27) and refuses to launch on 13–26.
+if(NOT CMAKE_OSX_DEPLOYMENT_TARGET)
+  set(CMAKE_OSX_DEPLOYMENT_TARGET 13.0)
+endif()
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
@@ -91,6 +97,7 @@ locus_add_test(test_backdrop tests/test_backdrop.cpp)
 locus_add_test(test_orbital_layout tests/test_orbital_layout.cpp)
 locus_add_test(test_fan_layout tests/test_fan_layout.cpp)
 locus_add_test(test_scene_hittest tests/test_scene_hittest.cpp)
+locus_add_test(test_fan_press tests/test_fan_press.cpp)
 locus_add_test(test_prefs tests/test_prefs.cpp)
 locus_add_test(test_hexhittest tests/test_hexhittest.cpp)
 locus_add_test(test_cellular_layout tests/test_cellular_layout.cpp)

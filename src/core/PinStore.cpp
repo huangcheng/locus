@@ -20,10 +20,18 @@ void PinStore::setPins(QVector<Pin> pins) {
 void PinStore::addPin(Pin pin) {
   const auto it = std::find_if(pins_.begin(), pins_.end(),
                                [&](const Pin &p) { return p.id == pin.id; });
-  if (it != pins_.end())
+  if (it != pins_.end()) {
     *it = std::move(pin);
-  else
-    pins_.push_back(std::move(pin));
+    save();
+    return;
+  }
+  // Same app pinned twice would double-fill a launcher slot; keep the
+  // existing entry (and its position) instead.
+  if (std::any_of(pins_.begin(), pins_.end(), [&](const Pin &p) {
+        return p.appPath == pin.appPath;
+      }))
+    return;
+  pins_.push_back(std::move(pin));
   save();
 }
 

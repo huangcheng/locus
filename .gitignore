@@ -1,4 +1,5 @@
 .ardot-screenshots/
+.ardot-shots/
 .DS_Store
 build/
 build2/
@@ -6,6 +7,7 @@ cmake-build-*/
 *.user
 .idea/
 .vscode/
+.qtcreator/
 # AI-generated exploration assets (not source)
 resources/review/
 resources/logo/

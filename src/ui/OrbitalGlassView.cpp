@@ -177,6 +177,10 @@ void OrbitalGlassView::advanceAnimation() {
   // Spark head chases the cursor angle along the shortest arc; the tail
   // stretches with the remaining chase distance (faster sweep = longer tail).
   if (spinInside_) {
+    // Shortest-arc chase. Keep spinDeg_ wrapped into (-180, 180] so the
+    // settle check below can compare raw values: an unwrapped accumulator
+    // converges to target − 360k after any sweep across the ±180° seam and
+    // would never settle — leaving the timer repainting forever.
     qreal delta = spinTargetDeg_ - spinDeg_;
     while (delta > 180.0)
       delta -= 360.0;
@@ -185,7 +189,11 @@ void OrbitalGlassView::advanceAnimation() {
     if (qAbs(delta) > 0.05)
       spinDir_ = delta > 0.0 ? 1 : -1;
     spinDeg_ += delta * (1.0 - qExp(-kSpinRate * dt));
-    if (qAbs(spinTargetDeg_ - spinDeg_) > kSpinEpsilonDeg)
+    while (spinDeg_ > 180.0)
+      spinDeg_ -= 360.0;
+    while (spinDeg_ <= -180.0)
+      spinDeg_ += 360.0;
+    if (qAbs(delta) > kSpinEpsilonDeg)
       settled = false;
     const qreal tailTarget =
         qBound(kTailMinDeg, qAbs(delta) * 3.5, kTailMaxDeg);

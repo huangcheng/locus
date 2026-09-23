@@ -6,10 +6,6 @@
 namespace locus {
 
 struct DensityPrefs {
-  qreal minIconSize = 34;
-  int maxPerRing = 12;
-  qreal gap = 12;
-  qreal widgetSize = 560;
   // Honeycomb grid: cell height = cellSize * 1.15, vertical pitch keeps the
   // 77/80 interlock ratio; cellGap is the horizontal pitch offset.
   qreal cellSize = 80;

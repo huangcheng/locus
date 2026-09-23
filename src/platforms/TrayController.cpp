@@ -2,6 +2,7 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QCursor>
 #include <QIcon>
 #include <QMenu>
 #include <QMessageBox>
@@ -31,22 +32,23 @@ QIcon trayIcon() {
 
 TrayController::TrayController(QObject *parent) : QObject(parent), tray_(this) {
   menu_ = new QMenu;
-  showAction_ = menu_->addAction(tr("Show Locus"));
   prefsAction_ = menu_->addAction(tr("Preferences…"));
   menu_->addSeparator();
   quitAction_ = menu_->addAction(tr("Quit"));
 
-  connect(showAction_, &QAction::triggered, this, &TrayController::showRequested);
   connect(prefsAction_, &QAction::triggered, this, &TrayController::prefsRequested);
   connect(quitAction_, &QAction::triggered, this, &TrayController::quitRequested);
+  // No setContextMenu: an attached NSMenu intercepts ALL clicks on macOS, so
+  // left-click could never reach us. Menu pops up manually on right-click.
   connect(&tray_, &QSystemTrayIcon::activated, this,
           [this](QSystemTrayIcon::ActivationReason reason) {
             if (reason == QSystemTrayIcon::Trigger ||
                 reason == QSystemTrayIcon::DoubleClick)
               emit showRequested();
+            else if (reason == QSystemTrayIcon::Context)
+              menu_->popup(QCursor::pos());
           });
 
-  tray_.setContextMenu(menu_);
   tray_.setIcon(trayIcon());
   tray_.setToolTip(tr("Locus"));
 
@@ -64,7 +66,6 @@ TrayController::TrayController(QObject *parent) : QObject(parent), tray_(this) {
 }
 
 void TrayController::retranslate() {
-  showAction_->setText(tr("Show Locus"));
   prefsAction_->setText(tr("Preferences…"));
   quitAction_->setText(tr("Quit"));
   tray_.setToolTip(tr("Locus"));

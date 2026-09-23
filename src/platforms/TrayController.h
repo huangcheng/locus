@@ -24,7 +24,6 @@ signals:
 private:
   QSystemTrayIcon tray_;
   QMenu *menu_ = nullptr;
-  QAction *showAction_ = nullptr;
   QAction *prefsAction_ = nullptr;
   QAction *quitAction_ = nullptr;
 };

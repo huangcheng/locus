@@ -330,7 +330,13 @@ int main(int argc, char *argv[]) {
   // Global hotkey: toggles the widget from any app; re-registers live when
   // the user records a new combo in Settings.
   locus::HotkeyManager hotkeyManager;
-  hotkeyManager.setHotkey(prefs.hotkey());
+  // Register (and re-register) the hotkey; surface failures in Settings —
+  // a rejected combo leaves the field in its error state instead of posing
+  // as a working shortcut.
+  auto applyHotkey = [&] {
+    prefsWindow.setHotkeyRegistration(hotkeyManager.setHotkey(prefs.hotkey()));
+  };
+  applyHotkey();
   QObject::connect(&hotkeyManager, &locus::HotkeyManager::triggered, &app,
                    [&] {
                      if (session.isOpen())
@@ -339,7 +345,7 @@ int main(int argc, char *argv[]) {
                        showMenuAt(QCursor::pos());
                    });
   QObject::connect(&prefsWindow, &locus::PrefsWindow::hotkeyChanged, &app,
-                   [&] { hotkeyManager.setHotkey(prefs.hotkey()); });
+                   applyHotkey);
   auto showPrefs = [&] {
     if (session.isOpen())
       hideMenu();
@@ -368,9 +374,9 @@ int main(int argc, char *argv[]) {
                      }
                    });
 
+  // Start hidden: the widget only appears when summoned (hotkey, tray, or a
+  // second launch pinging this instance). `--prefs` opens Settings instead.
   if (wantsPrefs)
     showPrefs();
-  else
-    showMenu();
   return app.exec();
 }
