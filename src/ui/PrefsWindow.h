@@ -56,6 +56,7 @@ private:
   QWidget *buildPinsPane();
   QWidget *buildDensityPane();
   QWidget *buildAboutPane();
+  void updateAboutLinks();
   void applyPalette();
   void reloadPinRows();
   void commitPinOrder();
@@ -112,6 +113,7 @@ private:
   // About pane
   QLabel *aboutTitle_ = nullptr;
   QWidget *aboutLogo_ = nullptr;
+  QLabel *aboutName_ = nullptr;
   QLabel *aboutVersion_ = nullptr;
   QLabel *aboutTagline_ = nullptr;
   QLabel *aboutCopyright_ = nullptr;

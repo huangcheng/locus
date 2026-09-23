@@ -8,10 +8,12 @@
 namespace locus {
 namespace {
 
-// Playing-card hands: each row is a tight left→right stack. All metrics
-// derive from the shared density sliders; defaults (cellSize 80, cellGap 8)
-// reproduce the original 84×110 card / 22 peek / 168 lane geometry exactly.
-constexpr qreal kMaxTiltDeg = 34.0;
+// A real hand of cards: every card in a row rotates around a shared pivot
+// below the row, so the tops spread and the bottoms converge. Rows overlap
+// deeply — the front hand covers the back hand except its top strip (the
+// rank pips), like two suits held together. All metrics derive from the
+// shared density sliders; defaults (cellSize 80, cellGap 8) reproduce the
+// original 84×110 card / 22 peek geometry.
 constexpr int kPerHand = 12;
 
 QPolygonF rotatedCardPolygon(QPointF center, qreal w, qreal h, qreal tiltRad) {
@@ -36,34 +38,18 @@ SceneModel FanLayoutStrategy::build(const QVector<Pin> &pins,
                                     const DensityPrefs &density) {
   SceneModel scene;
 
-  const qreal cardW = density.cellSize * 1.05;   // 84 @80
-  const qreal cardH = density.cellSize * 1.375;  // 110 @80
-  const qreal peek = density.cellGap * 2.75;     // 22 @8: readable index strip
-  const qreal arch = density.cellSize * 0.5;     // 40 @80
-  const qreal lanePitch =
-      cardH + arch + density.cellGap * 2.25;     // 168: stacked hands clear
-  const qreal margin = density.cellSize * 0.8;   // 64 @80
+  const qreal cardW = density.cellSize * 1.05;  // 84 @80
+  const qreal cardH = density.cellSize * 1.375; // 110 @80
+  const qreal peek = density.cellGap * 2.75;    // 22 @8: visible top strip
+  const qreal margin = density.cellSize * 0.8;  // 64 @80
+  const qreal radius = cardH * 1.35;            // pivot → card center
+  // Angular step sized so the visible strip at the top edge equals peek.
+  const qreal step = peek / (radius + cardH / 2.0);
+  // Front hand covers the back hand except its pip strip (~36% of a card).
+  const qreal rowPitch = cardH * 0.36;
 
   const int n = pins.size();
   const int hands = n == 0 ? 0 : (n + kPerHand - 1) / kPerHand;
-
-  const int widest = n == 0 ? 1 : qMin(kPerHand, n);
-  const qreal handWidth = cardW + qMax(0, widest - 1) * peek;
-  const qreal extentW = handWidth + 2.0 * margin;
-  const qreal extentH =
-      cardH + arch + qMax(0, hands - 1) * lanePitch + 2.0 * margin;
-  const qreal extent = qMax(extentW, extentH);
-
-  const QPointF origin(extent / 2.0, extent - margin - cardH * 0.35);
-
-  Decoration canvas;
-  canvas.name = QStringLiteral("Canvas");
-  canvas.kind = DecorationKind::Ellipse;
-  canvas.bounds = QRectF(0, 0, extent, extent);
-  canvas.styleKey = QStringLiteral("fan.canvas");
-  scene.decorations.push_back(canvas);
-
-  // No decorative pivot — it competed with the hands.
 
   int focusIdx = -1;
   for (int i = 0; i < n; ++i) {
@@ -73,51 +59,72 @@ SceneModel FanLayoutStrategy::build(const QVector<Pin> &pins,
     }
   }
 
+  // Lay out in pivot-local space (hand 0 pivot at the origin), then measure
+  // and translate into the canvas — no analytic extent guesswork.
+  QVector<QRectF> handBounds;
   for (int hand = 0; hand < hands; ++hand) {
     const int begin = hand * kPerHand;
     const int count = qMin(kPerHand, n - begin);
     if (count <= 0)
       break;
 
-    // Higher hands sit above (stacked rows, like two suits in image 2).
-    const qreal laneY = origin.y() - hand * lanePitch;
-    const qreal span = qMax(0, count - 1) * peek;
-    const qreal startX = origin.x() - span / 2.0;
-
-    Decoration track;
-    track.name = QStringLiteral("Hand");
-    track.kind = DecorationKind::Ellipse;
-    track.bounds = QRectF(startX - cardW * 0.2, laneY - arch - cardH * 0.55,
-                          span + cardW * 1.4,
-                          cardH + arch + density.cellSize * 0.3);
-    track.styleKey = QStringLiteral("fan.track");
-    scene.decorations.push_back(track);
+    const QPointF pivot(0, -hand * rowPitch);
+    QRectF handUnion;
 
     for (int i = 0; i < count; ++i) {
       const int pinIdx = begin + i;
-      const qreal t = count == 1 ? 0.5 : qreal(i) / qreal(count - 1);
-      // Mild arch so the hand reads as a fan, not a flat strip.
-      const qreal archY = arch * (1.0 - 4.0 * (t - 0.5) * (t - 0.5));
-      const qreal tiltDeg = -kMaxTiltDeg + t * (2.0 * kMaxTiltDeg);
-      const qreal tiltRad = qDegreesToRadians(tiltDeg);
-      const QPointF center(startX + i * peek, laneY - archY);
+      const qreal theta = (i - (count - 1) / 2.0) * step;
+      const QPointF center(pivot.x() + radius * std::sin(theta),
+                           pivot.y() - radius * std::cos(theta));
 
       PlacedItem item;
       item.id = pins[pinIdx].id;
       item.label = pins[pinIdx].label;
       item.bounds = QRectF(center.x() - cardW / 2.0, center.y() - cardH / 2.0,
                            cardW, cardH);
-      item.angle = tiltRad;
+      item.angle = theta;
       item.shape =
-          rotatedCardPolygon(center, cardW * 1.02, cardH * 1.02, tiltRad);
+          rotatedCardPolygon(center, cardW * 1.02, cardH * 1.02, theta);
       item.role = ItemRole::Item;
       // Within a hand: left→right stack (later on top).
-      // Between hands: lower row sits in front of the upper row (hearts over spades).
+      // Between hands: the lower (front) hand paints over the upper one.
       item.z = (hands - hand) * 1000 + i;
       if (pinIdx == focusIdx)
         item.z += 10000;
+      handUnion |= item.shape->boundingRect();
       scene.items.push_back(item);
     }
+    handBounds.push_back(handUnion);
+  }
+
+  QRectF content;
+  for (const QRectF &r : handBounds)
+    content |= r;
+  const qreal extent =
+      qCeil(qMax(content.width(), content.height()) + 2.0 * margin);
+  const QPointF shift((extent - content.width()) / 2.0 - content.x(),
+                      (extent - content.height()) / 2.0 - content.y());
+
+  for (auto &item : scene.items) {
+    item.bounds.translate(shift);
+    if (item.shape)
+      item.shape = item.shape->translated(shift);
+  }
+
+  Decoration canvas;
+  canvas.name = QStringLiteral("Canvas");
+  canvas.kind = DecorationKind::Ellipse;
+  canvas.bounds = QRectF(0, 0, extent, extent);
+  canvas.styleKey = QStringLiteral("fan.canvas");
+  scene.decorations.push_back(canvas);
+
+  for (int hand = 0; hand < handBounds.size(); ++hand) {
+    Decoration track;
+    track.name = QStringLiteral("Hand");
+    track.kind = DecorationKind::Ellipse;
+    track.bounds = handBounds[hand].translated(shift);
+    track.styleKey = QStringLiteral("fan.track");
+    scene.decorations.push_back(track);
   }
 
   if (focusIdx >= 0) {

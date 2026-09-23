@@ -965,6 +965,21 @@ void PrefsWindow::applyPalette() {
   static_cast<HotkeyField *>(hotkeyField_)->setPaletteColors(p);
   static_cast<HoneycombLogo *>(aboutLogo_)
       ->setDark(appearance_ == Appearance::Dark);
+  updateAboutLinks();
+}
+
+void PrefsWindow::updateAboutLinks() {
+  // Inline theme colors: with a stylesheet active, QPalette::Link tweaks
+  // are ignored by the label's cached document.
+  const Palette p = paletteFor(appearance_);
+  aboutName_->setText(QStringLiteral(
+      "<a href=\"https://github.com/huangcheng/locus\" "
+      "style=\"color:%1;text-decoration:none;\">Locus</a>")
+                          .arg(css(p.text)));
+  aboutCopyright_->setText(QStringLiteral(
+      "© 2026 <a href=\"https://cheng.im\" "
+      "style=\"color:%1;text-decoration:none;\">HUANG Cheng</a>")
+                               .arg(css(p.faint)));
 }
 
 void PrefsWindow::updateDensityStrings() {
@@ -1044,9 +1059,7 @@ void PrefsWindow::retranslateUi() {
   aboutTitle_->setText(tr("About"));
   aboutVersion_->setText(tr("Version %1").arg(QStringLiteral(LOCUS_VERSION)));
   aboutTagline_->setText(tr("A radial launcher for your favorite apps."));
-  aboutCopyright_->setText(QStringLiteral(
-      "© 2026 <a href=\"https://cheng.im\" "
-      "style=\"color:#3A7BD5;text-decoration:none;\">HUANG Cheng</a>"));
+  updateAboutLinks();
 
   // Tile captions, value labels and pin-row tooltips come from the model.
   refreshFromModel();
@@ -1368,15 +1381,16 @@ QWidget *PrefsWindow::buildAboutPane() {
   cardLay->addWidget(logo, 0, Qt::AlignCenter);
 
   // The app name doubles as the repo link — no separate URL line needed.
-  auto *name = new QLabel(
+  // Link color comes from QPalette::Link (set in applyPalette), not inline
+  // blue, so it follows the theme.
+  aboutName_ = new QLabel(
       QStringLiteral("<a href=\"https://github.com/huangcheng/locus\" "
-                     "style=\"color:#3A7BD5;text-decoration:none;\">"
-                     "Locus</a>"),
+                     "style=\"text-decoration:none;\">Locus</a>"),
       card);
-  name->setObjectName(QStringLiteral("paneTitle"));
-  name->setAlignment(Qt::AlignCenter);
-  name->setOpenExternalLinks(true);
-  cardLay->addWidget(name);
+  aboutName_->setObjectName(QStringLiteral("paneTitle"));
+  aboutName_->setAlignment(Qt::AlignCenter);
+  aboutName_->setOpenExternalLinks(true);
+  cardLay->addWidget(aboutName_);
 
   aboutVersion_ = new QLabel(card);
   aboutVersion_->setObjectName(QStringLiteral("caption"));

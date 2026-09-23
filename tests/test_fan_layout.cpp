@@ -65,7 +65,7 @@ private slots:
     }
   }
 
-  void twoHandsStackedVertically() {
+  void twoHandsOverlapLikeARealHand() {
     locus::FanLayoutStrategy s;
     locus::DensityPrefs d;
     d.widgetSize = 560;
@@ -74,7 +74,8 @@ private slots:
     QCOMPARE(itemCount(scene), 20);
     QCOMPARE(handCount(scene), 2);
 
-    // Bottom hand (first 12 pins) must paint above the upper hand.
+    // Bottom hand (first 12 pins) must paint above the upper hand, and the
+    // rows overlap deeply — only the back hand's top strip stays visible.
     int minBottomZ = 100000, maxTopZ = -1;
     qreal bottomY = 0, topY = 0;
     int nb = 0, nt = 0;
@@ -92,7 +93,10 @@ private slots:
     }
     QVERIFY(nb > 0 && nt > 0);
     QVERIFY(minBottomZ > maxTopZ);
-    QVERIFY(topY / nt < bottomY / nb - 80.0);
+    const qreal cardH = d.cellSize * 1.375;
+    const qreal separation = bottomY / nb - topY / nt;
+    QVERIFY(separation > cardH * 0.25);
+    QVERIFY(separation < cardH * 0.55);
   }
 
   void focusDoesNotRelayoutNeighbors() {
@@ -121,12 +125,16 @@ private slots:
     d.cellSize = 96;
     d.cellGap = 16;
     auto scene = s.build(makePins(4), {}, d);
-    // Card metrics follow the shared sliders (96*1.05 wide, peek 16*2.75).
+    // Card metrics follow the shared sliders (96*1.05 wide).
     QVERIFY(qAbs(scene.items.first().bounds.width() - 96.0 * 1.05) < 0.01);
     QVERIFY(qAbs(scene.items.first().bounds.height() - 96.0 * 1.375) < 0.01);
+    // Cards radiate from a pivot: the horizontal step at card-center height
+    // is tighter than the peek strip measured at the top edge.
+    const qreal peek = 16.0 * 2.75;
     const qreal dx = scene.items[1].bounds.center().x() -
                      scene.items[0].bounds.center().x();
-    QVERIFY(qAbs(dx - 16.0 * 2.75) < 0.01);
+    QVERIFY(dx < peek);
+    QVERIFY(dx > peek * 0.5);
   }
 };
 
