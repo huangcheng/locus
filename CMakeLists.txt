@@ -11,9 +11,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
-set(CMAKE_AUTOUIC ON)
-
-find_package(Qt6 6.5 REQUIRED COMPONENTS Widgets Test Network LinguistTools)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Widgets Test Network GuiPrivate LinguistTools)
 
 set(LOCUS_CORE_SOURCES
   src/core/Localization.cpp
@@ -98,6 +96,8 @@ locus_add_test(test_orbital_layout tests/test_orbital_layout.cpp)
 locus_add_test(test_fan_layout tests/test_fan_layout.cpp)
 locus_add_test(test_scene_hittest tests/test_scene_hittest.cpp)
 locus_add_test(test_fan_press tests/test_fan_press.cpp)
+locus_add_test(test_pins_remove tests/test_pins_remove.cpp)
+target_link_libraries(test_pins_remove PRIVATE Qt6::GuiPrivate)
 locus_add_test(test_prefs tests/test_prefs.cpp)
 locus_add_test(test_hexhittest tests/test_hexhittest.cpp)
 locus_add_test(test_cellular_layout tests/test_cellular_layout.cpp)

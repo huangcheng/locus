@@ -737,9 +737,10 @@ public:
     setObjectName(QStringLiteral("pinRow"));
     setAttribute(Qt::WA_StyledBackground, true);
     // The row covers the whole item, so it must let mouse events fall through
-    // to the viewport or InternalMove drag-reordering never starts. The remove
-    // button stays interactive.
-    setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    // to the viewport or InternalMove drag-reordering never starts. But
+    // WA_TransparentForMouseEvents also silences the row's CHILDREN (the ×
+    // button included), so forward by ignoring instead: unaccepted events
+    // propagate to the parent viewport, which drives selection and drag.
     auto *lay = new QHBoxLayout(this);
     lay->setContentsMargins(8, 0, 8, 0);
     lay->setSpacing(10);
@@ -771,6 +772,11 @@ public:
 
     setFixedHeight(46);
   }
+
+  // Forward unhandled events to the viewport (InternalMove drag source).
+  void mousePressEvent(QMouseEvent *event) override { event->ignore(); }
+  void mouseReleaseEvent(QMouseEvent *event) override { event->ignore(); }
+  void mouseMoveEvent(QMouseEvent *event) override { event->ignore(); }
 
   std::function<void()> onRemove = [] {};
 };
@@ -1539,6 +1545,15 @@ void PrefsWindow::selectPane(int index) {
 
 void PrefsWindow::reloadPinRows() {
   reloadingPins_ = true;
+  // clear() alone can leave item widgets orphaned on the viewport — remove
+  // and delete every row explicitly so no zombie rows linger or double-draw.
+  for (int i = 0; i < pinList_->count(); ++i) {
+    QListWidgetItem *item = pinList_->item(i);
+    if (QWidget *w = pinList_->itemWidget(item)) {
+      pinList_->removeItemWidget(item);
+      delete w;
+    }
+  }
   pinList_->clear();
   for (const auto &pin : pins_->pins()) {
     auto *item = new QListWidgetItem;
