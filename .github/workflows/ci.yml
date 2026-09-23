@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-test-package:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: 6.8.3
+          modules: qttools
+          cache: true
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Test
+        if: runner.os != 'Windows'
+        run: ctest --test-dir build --output-on-failure
+        env:
+          QT_QPA_PLATFORM: ${{ runner.os == 'Linux' && 'offscreen' || 'cocoa' }}
+
+      - name: Test (Windows)
+        if: runner.os == 'Windows'
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Package
+        run: cmake --build build --config Release --target package
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: locus-${{ matrix.os }}
+          path: |
+            build/*.dmg
+            build/*.zip
+            build/*.tar.gz
+          if-no-files-found: error

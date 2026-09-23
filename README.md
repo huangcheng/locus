@@ -1,23 +1,48 @@
 # Locus
 
-Cross-platform desktop launcher summoned at the cursor — Qt Widgets, hotkey + tray, pluggable UI skins (Cellular honeycomb by default; set `style=0` in QSettings for Orbital, Pie later).
+Cross-platform desktop launcher summoned at the cursor — Qt Widgets, global
+hotkey + tray, pluggable UI skins (Cellular honeycomb by default; Orbital and
+Fan in Settings).
+
+By [HUANG Cheng](https://cheng.im) · MIT License (see `LICENSE`)
 
 ## Build
 
+Requires Qt 6.5+ (Widgets, Network, Test, LinguistTools) and CMake 3.21+.
+
 ```bash
-cmake -S . -B build2 -DCMAKE_PREFIX_PATH=/opt/Qt/6.11.2/macos
-cmake --build build2
-ctest --test-dir build2 --output-on-failure
-open build2/Locus.app
-```
+cmake -S . -B build -DCMAKE_PREFIX_PATH="$(brew --prefix qt)"   # or your Qt path
+cmake --build build
+ctest --test-dir build --output-on-failure
+open build/Locus.app        # macOS — run the .app bundle, not the raw binary
+``+
+On Linux, the executable is `build/locus`; run tests headless with
+`QT_QPA_PLATFORM=offscreen ctest --test-dir build`.
 
-On macOS, run the **`.app` bundle** (not the raw binary) so the menu-bar tray icon can appear. Look for a small ring icon near the clock; **left-click** it to summon the widget, **right-click** for Preferences/Quit. Locus is a menu-bar agent (`LSUIElement`) — no Dock tile, no app menu bar.
+## Use
 
-Requires Qt 6.5+ (Widgets). First launch seeds pins from apps under `/Applications`. Esc dismisses the widget. Cells magnify toward the cursor, Dock-style. Locus is single-instance: launching it again just summons the running one. Global hotkey and Preferences UI are next.
+On macOS, look for the small honeycomb icon near the clock: **left-click** it
+to summon the widget, **right-click** for Preferences/Quit. Locus is a
+menu-bar agent (`LSUIElement`) — no Dock tile, no app menu bar.
 
-If the menu-bar icon is still missing: check **Control Center → Menu Bar** (or System Settings → Control Center) and ensure icons aren’t overloaded; since Locus is an agent it never appears in the Dock — confirm it's alive with `pgrep -x Locus`.
+Launch starts hidden. Summon it with the tray click, the global hotkey
+(default ⌃Space on macOS, Ctrl+Alt+Space on Windows — record your own in
+Settings), or by launching Locus again (single-instance: the new process pings
+the running one). Esc dismisses. First launch seeds a dozen common apps;
+add, remove, and drag-reorder pins in Settings. Cells magnify toward the
+cursor, Dock-style.
 
-Working title: **Locus** (final name TBD).
+If the menu-bar icon is missing: check **System Settings → Control Center**
+and ensure the menu bar isn’t overloaded; since Locus is an agent it never
+appears in the Dock — confirm it's alive with `pgrep -x Locus`.
+
+## Platform status
+
+| Platform | Launcher | Tray | Global hotkey | Native glass backdrop |
+| --- | --- | --- | --- | --- |
+| macOS 13+ | ✅ | ✅ | ✅ Carbon | ✅ Vibrancy / Liquid Glass |
+| Windows 10+ | ✅ | ✅ | ✅ RegisterHotKey | painted tint |
+| Linux/X11 | ✅ | ✅ | stub (not yet) | painted tint |
 
 ## Docs
 

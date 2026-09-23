@@ -103,3 +103,86 @@ locus_add_test(test_hexhittest tests/test_hexhittest.cpp)
 locus_add_test(test_cellular_layout tests/test_cellular_layout.cpp)
 locus_add_test(test_dockanim tests/test_dockanim.cpp)
 
+# --- Packaging -----------------------------------------------------------
+# macOS: DragNDrop DMG · Windows: ZIP · Linux: TGZ. The Qt resources (icons,
+# translations) are embedded in the binary, so each artifact is self-contained.
+set(CPACK_PACKAGE_NAME "Locus")
+set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+set(CPACK_PACKAGE_VENDOR "HUANG Cheng")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY
+    "Your favorite apps, always at hand.")
+
+# CPack's install step strips the build-tree rpath, so the packaged app must
+# carry the Qt libs itself: macdeployqt / windeployqt bundle them next to the
+# binary. Find the tool next to Qt's qmake.
+get_target_property(QMAKE_EXE Qt6::qmake IMPORTED_LOCATION)
+get_filename_component(QT_BIN_DIR "${QMAKE_EXE}" DIRECTORY)
+# The install step rewrites the app's rpath to INSTALL_RPATH (empty by
+# default); keep it pointing at the Qt libs so the packaged binary resolves
+# them for macdeployqt, which then rewrites everything to @executable_path.
+if(APPLE)
+  set_target_properties(locus PROPERTIES INSTALL_RPATH "${QT_BIN_DIR}/../lib")
+endif()
+
+if(APPLE)
+  set(CPACK_GENERATOR "DragNDrop")
+  set(CPACK_DMG_VOLUME_NAME "Locus")
+  install(TARGETS locus BUNDLE DESTINATION .)
+  find_program(MACDEPLOYQT_EXECUTABLE macdeployqt HINTS "${QT_BIN_DIR}")
+  if(NOT MACDEPLOYQT_EXECUTABLE)
+    message(FATAL_ERROR "macdeployqt not found next to qmake (${QT_BIN_DIR})")
+  endif()
+  # A pure-Widgets app never loads Qml; macdeployqt still pulls in the
+  # VirtualKeyboard plugin's Qml framework chain. Drop it — dead weight, and
+  # its re-signing is what trips codesign verification.
+  install(CODE "
+    # macdeployqt shells out to `strip`/`codesign` — homebrew binutils shadows
+    # Apple's strip on dev machines and corrupts Mach-O frameworks, so run it
+    # with a system-only PATH.
+    set(ENV{PATH} \"/usr/bin:/bin:/usr/sbin:/sbin\")
+    execute_process(
+      COMMAND \"${MACDEPLOYQT_EXECUTABLE}\"
+              \"\${CMAKE_INSTALL_PREFIX}/Locus.app\"
+      RESULT_VARIABLE _deploy)
+    if(NOT _deploy EQUAL 0)
+      message(FATAL_ERROR \"macdeployqt failed (\${_deploy})\")
+    endif()
+    file(GLOB _qmljunk
+      \"\${CMAKE_INSTALL_PREFIX}/Locus.app/Contents/Frameworks/QtQml*\"
+      \"\${CMAKE_INSTALL_PREFIX}/Locus.app/Contents/Frameworks/QtVirtualKeyboard*\"
+      \"\${CMAKE_INSTALL_PREFIX}/Locus.app/Contents/Frameworks/QtQuick*\")
+    foreach(_fw \${_qmljunk})
+      message(STATUS \"stripped \${_fw}\")
+    endforeach()
+    file(REMOVE_RECURSE \${_qmljunk}
+      \"\${CMAKE_INSTALL_PREFIX}/Locus.app/Contents/PlugIns/virtualkeyboard\")
+    # Deleting signed content breaks the seal — re-sign ad-hoc (real signing
+    # + notarization is postponed for now).
+    execute_process(
+      COMMAND /usr/bin/codesign --force --sign -
+              \"\${CMAKE_INSTALL_PREFIX}/Locus.app\"
+      RESULT_VARIABLE _sign)
+    if(NOT _sign EQUAL 0)
+      message(FATAL_ERROR \"codesign re-sign failed (\${_sign})\")
+    endif()")
+elseif(WIN32)
+  set(CPACK_GENERATOR "ZIP")
+  install(TARGETS locus RUNTIME DESTINATION .)
+  find_program(WINDEPLOYQT_EXECUTABLE windeployqt HINTS "${QT_BIN_DIR}")
+  if(NOT WINDEPLOYQT_EXECUTABLE)
+    message(FATAL_ERROR "windeployqt not found next to qmake (${QT_BIN_DIR})")
+  endif()
+  install(CODE "
+    file(GLOB_RECURSE _locus_exe \"\${CMAKE_INSTALL_PREFIX}/locus*.exe\")
+    execute_process(
+      COMMAND \"${WINDEPLOYQT_EXECUTABLE}\" --no-compiler-runtime
+              --no-translations \${_locus_exe}
+      RESULT_VARIABLE _deploy)
+    if(NOT _deploy EQUAL 0)
+      message(FATAL_ERROR \"windeployqt failed (\${_deploy})\")
+    endif()")
+else()
+  set(CPACK_GENERATOR "TGZ")
+  install(TARGETS locus RUNTIME DESTINATION .)
+endif()
+include(CPack)
