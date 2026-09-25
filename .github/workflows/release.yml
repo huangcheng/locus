@@ -1,0 +1,84 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write # gh release upload
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # ci.yml's install-qt-action Node/python quirk workaround: drive
+      # aqtinstall with the setup-python interpreter directly.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Qt
+        shell: pwsh
+        run: |
+          python -m pip install --quiet aqtinstall
+          python -m aqt install-qt windows desktop 6.8.2 win64_msvc2022_64 -O C:\Qt
+          "C:\Qt\6.8.2\msvc2022_64\bin" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+          "CMAKE_PREFIX_PATH=C:\Qt\6.8.2\msvc2022_64" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          winget install --id JRSoftware.InnoSetup --silent --accept-source-agreements --accept-package-agreements
+          "C:\Program Files (x86)\Inno Setup 6" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+
+      # The git tag is the version source of truth; fail the release if the
+      # in-repo copies drifted.
+      - name: Verify version drift (tag == CMake == installer.iss)
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}".TrimStart('v')
+          $cmake = Select-String -Path CMakeLists.txt -Pattern 'project\(locus VERSION ([0-9.]+)' |
+                   ForEach-Object { $_.Matches.Groups[1].Value }
+          $iss = Select-String -Path installer.iss -Pattern '#define AppVersion "([0-9.]+)"' |
+                 ForEach-Object { $_.Matches.Groups[1].Value }
+          if ($tag -ne $cmake -or $tag -ne $iss) {
+            throw "version drift: tag=$tag cmake=$cmake iss=$iss"
+          }
+          "LOCUS_VERSION=$tag" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
+      - name: Configure and build
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --parallel
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Package installer and feed
+        shell: pwsh
+        run: |
+          cmake --install build --prefix build\stage
+          iscc /DStageDir=build\stage /DOutputDirPath=build\dist installer.iss
+          if ($LASTEXITCODE -ne 0) { throw "iscc failed" }
+          $v = $env:LOCUS_VERSION
+          $exe = "build\dist\Locus-$v-windows-x64-setup.exe"
+          $hash = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLower()
+          $size = (Get-Item $exe).Length
+          $date = (Get-Date).ToUniversalTime().ToString('r')
+          $feed = Get-Content installer\appcast.xml.in -Raw
+          $feed = $feed.Replace('@VERSION@', $v).Replace('@SHA256@', $hash).
+                        Replace('@SIZE@', "$size").Replace('@DATE@', $date)
+          Set-Content -Path build\dist\appcast.xml -Value $feed -Encoding utf8
+          Get-Content build\dist\appcast.xml
+
+      - name: Publish release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $v = $env:LOCUS_VERSION
+          gh release create "v$v" --generate-notes `
+            "build\dist\Locus-$v-windows-x64-setup.exe" `
+            build\dist\appcast.xml

@@ -113,6 +113,17 @@ QRectF CellularGlassView::gridBounds() const {
   return g;
 }
 
+QPointF CellularGlassView::origin() const {
+  // Rows are centered within the widest row (CellularLayoutStrategy), so the
+  // occupied union's left edge is >= kMargin and sizeHint() sizes the window
+  // to that union. Anchor the union at kMargin+kPad so short rows stay
+  // centered and edge cells keep the full glow margin on BOTH sides. A fixed
+  // kPad translation left the right side kPad-short and the window edge
+  // clipped the focus glow.
+  const QRectF g = gridBounds();
+  return QPointF(kMargin + kPad - g.left(), kMargin + kPad - g.top());
+}
+
 QSize CellularGlassView::sizeHint() const {
   const QRectF g = gridBounds();
   const qreal w = qMax<qreal>(g.width(), 200) + 2 * (kMargin + kPad);
@@ -201,8 +212,8 @@ void CellularGlassView::paintEvent(QPaintEvent *) {
   const bool dark = appearance_ != Appearance::Light;
   const qint64 now = clock_.elapsed();
 
-  p.save();
-  p.translate(kPad, kPad); // scene → view coords; padding prevents clipping
+  const QPointF org = origin();
+  p.translate(org); // scene → view coords; padding prevents clipping
 
   // Amber glow behind the focused cell
   for (const auto &dec : scene_.decorations) {
@@ -325,7 +336,7 @@ void CellularGlassView::paintEvent(QPaintEvent *) {
 }
 
 void CellularGlassView::mouseMoveEvent(QMouseEvent *event) {
-  const QPointF scenePos = event->position() - QPointF(kPad, kPad);
+  const QPointF scenePos = event->position() - origin();
   cursorPos_ = scenePos;
   cursorInside_ = true;
   if (!animTimer_.isActive())
@@ -340,8 +351,7 @@ void CellularGlassView::mouseMoveEvent(QMouseEvent *event) {
 void CellularGlassView::mousePressEvent(QMouseEvent *event) {
   if (event->button() != Qt::LeftButton)
     return;
-  const QString id =
-      hitTest(scene_, event->position() - QPointF(kPad, kPad));
+  const QString id = hitTest(scene_, event->position() - origin());
   if (!id.isEmpty()) {
     pressedId_ = id;
     pressedAt_ = clock_.elapsed();

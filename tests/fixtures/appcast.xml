@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0"
+     xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>Locus</title>
+    <item>
+      <title>0.2.0</title>
+      <pubDate>Fri, 25 Sep 2026 12:00:00 +0000</pubDate>
+      <enclosure url="https://example.com/Locus-0.2.0-windows-x64-setup.exe"
+                 sparkle:version="0.2.0" sparkle:os="windows-x64"
+                 length="24129834" type="application/octet-stream"
+                 sparkle:sha256="aabbcc"/>
+      <enclosure url="https://example.com/Locus-0.2.0-macos.dmg"
+                 sparkle:version="0.2.0" sparkle:os="macos"
+                 length="30000000" type="application/octet-stream"/>
+    </item>
+    <item>
+      <title>0.1.5</title>
+      <enclosure url="https://example.com/Locus-0.1.5-windows-x64-setup.exe"
+                 sparkle:version="0.1.5" sparkle:os="windows-x64"
+                 length="24000000" type="application/octet-stream"
+                 sparkle:sha256="ddeeff"/>
+    </item>
+  </channel>
+</rss>

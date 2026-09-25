@@ -2,6 +2,8 @@
 #include "core/PinStore.h"
 #include "core/Prefs.h"
 #include "core/SessionController.h"
+#include "core/UpdateChecker.h"
+#include "core/UpdateDownloader.h"
 #include "layout/CellularLayoutStrategy.h"
 #include "layout/FanLayoutStrategy.h"
 #include "layout/OrbitalLayoutStrategy.h"
@@ -27,6 +29,7 @@
 #include <QScreen>
 #include <QSettings>
 #include <QStyleHints>
+#include <QProcess>
 #include <QTimer>
 #include <QUuid>
 
@@ -317,6 +320,7 @@ int main(int argc, char *argv[]) {
     applyIcons();
     rebuild();
   });
+
   QObject::connect(&prefsWindow, &locus::PrefsWindow::languageChanged, &app,
                    [&] {
                      locus::installLocusTranslator(prefs.language());
@@ -356,6 +360,93 @@ int main(int argc, char *argv[]) {
   };
   QObject::connect(&tray, &locus::TrayController::prefsRequested, &app,
                    showPrefs);
+  // --- Auto-update -------------------------------------------------------
+  // Feed-driven checker + SHA256-verified downloader. Auto-check 5s after
+  // launch (24h throttle, silent on failure); manual checks from Settings
+  // or the tray menu surface errors. Installing = run the verified Inno
+  // installer silently and quit; it upgrades in place (fixed AppId).
+  locus::UpdateChecker updateChecker;
+  updateChecker.setCurrentVersion(QStringLiteral(LOCUS_VERSION));
+  locus::UpdateDownloader updateDownloader;
+  locus::UpdateInfo pendingUpdate;
+  bool hasPendingUpdate = false;
+  bool manualCheck = false;
+  QString verifiedInstallerPath;
+
+  QObject::connect(&prefsWindow, &locus::PrefsWindow::updateCheckRequested,
+                   &app, [&] {
+                     manualCheck = true;
+                     updateChecker.markChecked();
+                     prefsWindow.setUpdateChecking();
+                     updateChecker.check();
+                   });
+  QObject::connect(&tray, &locus::TrayController::updateCheckRequested, &app,
+                   [&] {
+                     showPrefs();
+                     prefsWindow.setUpdateChecking();
+                     manualCheck = true;
+                     updateChecker.markChecked();
+                     updateChecker.check();
+                   });
+  QObject::connect(&updateChecker, &locus::UpdateChecker::updateAvailable,
+                   &app, [&](const locus::UpdateInfo &info) {
+                     hasPendingUpdate = true;
+                     pendingUpdate = info;
+                     prefsWindow.setUpdateAvailable(info.version, info.size);
+                     if (!manualCheck)
+                       tray.showUpdateAvailable(info.version);
+                   });
+  QObject::connect(&updateChecker, &locus::UpdateChecker::upToDate, &app,
+                   [&] {
+                     if (manualCheck)
+                       prefsWindow.setUpdateUpToDate();
+                   });
+  QObject::connect(&updateChecker, &locus::UpdateChecker::checkFailed, &app,
+                   [&](const QString &error) {
+                     // Background checks fail silently; the card just goes
+                     // back to idle.
+                     if (manualCheck)
+                       prefsWindow.setUpdateFailed(error);
+                     else
+                       prefsWindow.setUpdateIdle();
+                   });
+  QObject::connect(&prefsWindow,
+                   &locus::PrefsWindow::updateDownloadRequested, &app, [&] {
+                     if (!hasPendingUpdate)
+                       return;
+                     prefsWindow.setUpdateProgress(0, 0); // indeterminate
+                     updateDownloader.download(pendingUpdate);
+                   });
+  QObject::connect(&updateDownloader, &locus::UpdateDownloader::progress,
+                   &app, [&](qint64 received, qint64 total) {
+                     prefsWindow.setUpdateProgress(received, total);
+                   });
+  QObject::connect(&updateDownloader, &locus::UpdateDownloader::finished,
+                   &app, [&](const QString &path) {
+                     verifiedInstallerPath = path;
+                     prefsWindow.setUpdateReady();
+                   });
+  QObject::connect(&updateDownloader, &locus::UpdateDownloader::failed, &app,
+                   [&](const QString &error) {
+                     prefsWindow.setUpdateFailed(error);
+                   });
+  QObject::connect(&prefsWindow, &locus::PrefsWindow::updateInstallRequested,
+                   &app, [&] {
+                     if (verifiedInstallerPath.isEmpty())
+                       return;
+                     QProcess::startDetached(verifiedInstallerPath,
+                                             {QStringLiteral("/VERYSILENT"),
+                                              QStringLiteral("/NORESTART"),
+                                              QStringLiteral("/SUPPRESSMSGBOXES")});
+                     QCoreApplication::quit();
+                   });
+  QTimer::singleShot(5000, &app, [&] {
+    if (!updateChecker.shouldAutoCheck())
+      return;
+    manualCheck = false;
+    updateChecker.markChecked();
+    updateChecker.check();
+  });
 
   QLocalServer singleInstanceGuard;
   QLocalServer::removeServer(instanceServer); // clear a stale socket after crashes

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(locus VERSION 0.1.0 LANGUAGES CXX)
+project(locus VERSION 1.0.0 LANGUAGES CXX)
 
 # Matches LSMinimumSystemVersion in macos/Info.plist. Without this the binary
 # inherits the build SDK's minimum (macOS 27) and refuses to launch on 13–26.
@@ -19,6 +19,8 @@ set(LOCUS_CORE_SOURCES
   src/core/Pin.cpp
   src/core/SessionController.cpp
   src/core/PinStore.cpp
+  src/core/UpdateChecker.cpp
+  src/core/UpdateDownloader.cpp
   src/core/Prefs.cpp
   src/layout/OrbitalLayoutStrategy.cpp
   src/layout/CellularLayoutStrategy.cpp
@@ -51,11 +53,10 @@ endif()
 add_library(locus_core STATIC ${LOCUS_CORE_SOURCES})
 target_include_directories(locus_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_compile_definitions(locus_core PUBLIC LOCUS_VERSION="${PROJECT_VERSION}")
-target_link_libraries(locus_core PUBLIC Qt6::Widgets)
+target_link_libraries(locus_core PUBLIC Qt6::Widgets Qt6::Network)
 if(APPLE)
   target_link_libraries(locus_core PUBLIC "-framework AppKit" "-framework ServiceManagement" "-framework Carbon")
 endif()
-
 if(APPLE)
   add_executable(locus MACOSX_BUNDLE src/main.cpp macos/AppIcon.icns)
   set_source_files_properties(macos/AppIcon.icns PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
@@ -69,7 +70,23 @@ if(APPLE)
     MACOSX_BUNDLE_ICON_FILE "AppIcon.icns"
   )
 else()
-  add_executable(locus src/main.cpp)
+  if(WIN32)
+    # Windows: embed app icon + VERSIONINFO (Explorer Properties, taskbar,
+    # installer). configure_file keeps the rc version in sync with project().
+    enable_language(RC)
+    string(REPLACE "." "," LOCUS_VERSION_COMMA "${PROJECT_VERSION}.0")
+    configure_file(windows/locus.rc.in ${CMAKE_CURRENT_BINARY_DIR}/locus.rc @ONLY)
+  endif()
+  add_executable(locus src/main.cpp $<$<PLATFORM_ID:Windows>:${CMAKE_CURRENT_BINARY_DIR}/locus.rc>)
+  if(WIN32)
+    # GUI subsystem: no console window when launched from Explorer, shortcuts,
+    # or the installer's post-install run. Qt6::EntryPoint supplies WinMain
+    # which forwards to our plain main().
+    set_target_properties(locus PROPERTIES WIN32_EXECUTABLE TRUE)
+    if(TARGET Qt6::EntryPoint)
+      target_link_libraries(locus PRIVATE Qt6::EntryPoint)
+    endif()
+  endif()
 endif()
 target_link_libraries(locus PRIVATE locus_core Qt6::Widgets Qt6::Network)
 
@@ -97,6 +114,7 @@ locus_add_test(test_orbital_layout tests/test_orbital_layout.cpp)
 locus_add_test(test_fan_layout tests/test_fan_layout.cpp)
 locus_add_test(test_scene_hittest tests/test_scene_hittest.cpp)
 locus_add_test(test_fan_press tests/test_fan_press.cpp)
+locus_add_test(test_fan_icon tests/test_fan_icon.cpp)
 locus_add_test(test_pins_remove tests/test_pins_remove.cpp)
 locus_add_test(test_prefs tests/test_prefs.cpp)
 # Window-system-level event injection needs Qt's private QWSI header. Use the
@@ -113,6 +131,15 @@ endif()
 locus_add_test(test_hexhittest tests/test_hexhittest.cpp)
 locus_add_test(test_cellular_layout tests/test_cellular_layout.cpp)
 locus_add_test(test_dockanim tests/test_dockanim.cpp)
+locus_add_test(test_drop_add tests/test_drop_add.cpp)
+if(TARGET Qt6::GuiPrivate)
+  target_link_libraries(test_drop_add PRIVATE Qt6::GuiPrivate)
+else()
+  target_include_directories(test_drop_add PRIVATE
+    "${Qt6Gui_INCLUDE_DIRS}/${Qt6Gui_VERSION}/QtGui"
+    "${Qt6Core_INCLUDE_DIRS}/${Qt6Core_VERSION}/QtCore")
+endif()
+locus_add_test(test_update tests/test_update.cpp)
 
 # --- Packaging -----------------------------------------------------------
 # macOS: DragNDrop DMG · Windows: ZIP · Linux: TGZ. The Qt resources (icons,

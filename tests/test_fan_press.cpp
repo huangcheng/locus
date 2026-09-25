@@ -1,8 +1,8 @@
 // Regression: clicking the VISIBLE (raised) focused card must activate that
-// card. The raised card paints upright, morphed to a square, lifted 26px and
-// scaled 1.07 (FanGlassView paintEvent); before the fix, mousePressEvent
-// hit-tested the REST geometry, so the top of the visible card resolved to
-// the back hand's card — launching the wrong app.
+// card. The raised card paints upright, lifted 26px and scaled 1.07
+// (FanGlassView paintEvent); before the fix, mousePressEvent hit-tested the
+// REST geometry, so the top of the visible card resolved to the back hand's
+// card — launching the wrong app.
 #include "core/Pin.h"
 #include "core/SceneModel.h"
 #include "layout/FanLayoutStrategy.h"
@@ -35,7 +35,7 @@ const locus::PlacedItem *itemFor(const locus::SceneModel &scene,
   return nullptr;
 }
 
-// Mirror of FanGlassView's raised geometry: square (h morphs to w), lifted
+// Mirror of FanGlassView's raised geometry: same portrait shape, lifted
 // kPullOut, scaled kRaiseScale about the card center.
 constexpr qreal kPullOut = 26.0;
 constexpr qreal kRaiseScale = 1.07;
@@ -43,7 +43,8 @@ constexpr qreal kRaiseScale = 1.07;
 QRectF raisedRect(const locus::PlacedItem &card) {
   const QPointF c = card.bounds.center();
   const qreal w = card.bounds.width() * kRaiseScale;
-  return QRectF(c.x() - w / 2.0, c.y() - kPullOut - w / 2.0, w, w);
+  const qreal h = card.bounds.height() * kRaiseScale;
+  return QRectF(c.x() - w / 2.0, c.y() - kPullOut - h / 2.0, w, h);
 }
 
 void pressAt(locus::FanGlassView &view, const QPointF &local) {

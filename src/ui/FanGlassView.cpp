@@ -105,8 +105,13 @@ void drawShadow(QPainter &p, const QRectF &card, qreal radius, qreal blur,
 }
 
 // macOS app icons paint their artwork into only ~80% of the canvas; overscale
-// so the artwork — not its transparent margin — fills the box.
+// so the artwork — not its transparent margin — fills the box. Windows/Linux
+// shell icons are already full-bleed: overscaling them crops the artwork.
+#ifdef Q_OS_MAC
 constexpr qreal kIconBleed = 1.24;
+#else
+constexpr qreal kIconBleed = 1.0;
+#endif
 
 void paintAppIcon(QPainter &p, const QIcon &icon, const QRectF &box,
                   qreal radius, const QColor &placeholder) {
@@ -126,15 +131,15 @@ void paintAppIcon(QPainter &p, const QIcon &icon, const QRectF &box,
 }
 
 // Where a card PAINTS at full emphasis (paintEvent): pulled upright (tilt →
-// 0), morphed to a square tile (h → w), lifted by kPullOut, scaled by
-// kRaiseScale about its center. Hover AND clicks must resolve against this
-// geometry — the rest-shape hit-test would hand the top of the visible card
-// to the back hand behind it.
+// 0), lifted by kPullOut, scaled by kRaiseScale about its center. Hover AND
+// clicks must resolve against this geometry — the rest-shape hit-test would
+// hand the top of the visible card to the back hand behind it.
 QPolygonF raisedCardShape(const PlacedItem &item) {
   const QPointF c = item.bounds.center();
   const qreal w = item.bounds.width() * kRaiseScale;
+  const qreal h = item.bounds.height() * kRaiseScale;
   return QPolygonF(
-      QRectF(c.x() - w / 2.0, c.y() - kPullOut - w / 2.0, w, w));
+      QRectF(c.x() - w / 2.0, c.y() - kPullOut - h / 2.0, w, h));
 }
 
 } // namespace
@@ -277,10 +282,9 @@ void FanGlassView::paintEvent(QPaintEvent *) {
     const qreal tilt = item->angle.value_or(0.0) * (1.0 - ev);
 
     const qreal w = item->bounds.width();
-    const qreal hRest = item->bounds.height();
-    // The raised card morphs into a square icon tile: a portrait card fully
-    // uncovered with just a centered icon reads as mostly empty space.
-    const qreal h = hRest - (hRest - w) * ev;
+    // Raised or not, the card keeps its portrait shape — squaring it off made
+    // the face-up card read as an icon tile instead of a playing card.
+    const qreal h = item->bounds.height();
 
     p.save();
     p.translate(center);
@@ -350,7 +354,7 @@ void FanGlassView::paintEvent(QPaintEvent *) {
 
     const QIcon icon = icons_.value(item->id);
     if (faceUp) {
-      // Icon-only face: fill the square tile, leave just a breathing margin.
+      // Icon-only face: fill the card, leave just a breathing margin.
       const qreal iconBox = qMin(iconSize_ * 1.7, card.width() * 0.82);
       const QRectF iconRect((card.width() - iconBox) / 2.0,
                             (card.height() - iconBox) / 2.0, iconBox, iconBox);

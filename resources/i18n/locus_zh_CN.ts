@@ -125,8 +125,8 @@
     </message>
     <message>
         <location filename="../../src/ui/PrefsWindow.cpp" line="1553"/>
-        <source>Programs (*.exe)</source>
-        <translation>程序 (*.exe)</translation>
+        <source>Programs (*.exe;*.lnk)</source>
+        <translation>程序 (*.exe;*.lnk)</translation>
     </message>
     <message>
         <location filename="../../src/ui/PrefsWindow.cpp" line="1556"/>
@@ -181,8 +181,8 @@
     <message>
         <location filename="../../src/ui/PrefsWindow.cpp" line="1090"/>
         <location filename="../../src/ui/PrefsWindow.cpp" line="1315"/>
-        <source>Drag to reorder — the widget reflows the grid instantly.</source>
-        <translation>拖拽即可重新排序，启动器网格会即时重排。</translation>
+        <source>Drop an app or shortcut here to pin it; drag rows to reorder.</source>
+        <translation>将应用或快捷方式拖到此处即可固定；拖拽行可重新排序。</translation>
     </message>
     <message>
         <location filename="../../src/ui/PrefsWindow.cpp" line="1468"/>
@@ -327,6 +327,94 @@
         <location filename="../../src/platforms/TrayController.cpp" line="58"/>
         <source>System tray is unavailable. Use the Dock icon or reopen the app.</source>
         <translation>系统托盘不可用。请使用 Dock 图标或重新打开应用。</translation>
+    </message>
+</context>
+<context>
+    <name>locus::PrefsWindow</name>
+    <message>
+        <source>Updates</source>
+        <translation>更新</translation>
+    </message>
+    <message>
+        <source>Check now</source>
+        <translation>检查更新</translation>
+    </message>
+    <message>
+        <source>Checking…</source>
+        <translation>正在检查…</translation>
+    </message>
+    <message>
+        <source>Contacting the update feed…</source>
+        <translation>正在连接更新服务器…</translation>
+    </message>
+    <message>
+        <source>Version %1</source>
+        <translation>版本 %1</translation>
+    </message>
+    <message>
+        <source>Locus %1 is up to date.</source>
+        <translation>Locus %1 已是最新版本。</translation>
+    </message>
+    <message>
+        <source>Download &amp;&amp; Install</source>
+        <translation>下载并安装</translation>
+    </message>
+    <message>
+        <source> (%1 MB)</source>
+        <translation>（%1 MB）</translation>
+    </message>
+    <message>
+        <source>Locus %1 is available%2.</source>
+        <translation>Locus %1 现已发布%2。</translation>
+    </message>
+    <message>
+        <source>%1%</source>
+        <translation>%1%</translation>
+    </message>
+    <message>
+        <source>Downloading update…</source>
+        <translation>正在下载更新…</translation>
+    </message>
+    <message>
+        <source>Install &amp;&amp; Restart</source>
+        <translation>安装并重启</translation>
+    </message>
+    <message>
+        <source>Locus %1 is verified and ready to install.</source>
+        <translation>Locus %1 已通过校验，可以安装。</translation>
+    </message>
+    <message>
+        <source>Update failed: %1</source>
+        <translation>更新失败：%1</translation>
+    </message>
+</context>
+<context>
+    <name>locus::TrayController</name>
+    <message>
+        <source>Check for Updates…</source>
+        <translation>检查更新…</translation>
+    </message>
+    <message>
+        <source>Locus update available</source>
+        <translation>Locus 有可用更新</translation>
+    </message>
+    <message>
+        <source>Version %1 is ready — open Settings to install.</source>
+        <translation>版本 %1 已就绪——打开设置即可安装。</translation>
+    </message>
+</context>
+<context>
+    <name>locus::UpdateChecker</name>
+    <message>
+        <source>No usable release found in the update feed.</source>
+        <translation>更新服务器上没有找到可用的版本。</translation>
+    </message>
+</context>
+<context>
+    <name>locus::UpdateDownloader</name>
+    <message>
+        <source>Downloaded file failed integrity verification.</source>
+        <translation>下载的文件未通过完整性校验。</translation>
     </message>
 </context>
 </TS>

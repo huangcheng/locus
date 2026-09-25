@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Release workflow fills @VARS@ (see .github/workflows/release.yml). -->
+<rss version="2.0"
+     xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>Locus</title>
+    <link>https://github.com/huangcheng/locus</link>
+    <item>
+      <title>@VERSION@</title>
+      <pubDate>@DATE@</pubDate>
+      <enclosure url="https://github.com/huangcheng/locus/releases/download/v@VERSION@/Locus-@VERSION@-windows-x64-setup.exe"
+                 sparkle:version="@VERSION@" sparkle:os="windows-x64"
+                 length="@SIZE@" type="application/octet-stream"
+                 sparkle:sha256="@SHA256@"/>
+    </item>
+  </channel>
+</rss>

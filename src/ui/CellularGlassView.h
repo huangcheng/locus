@@ -46,6 +46,7 @@ protected:
 
 private:
   QRectF gridBounds() const;
+  QPointF origin() const; // scene → view translation (see .cpp)
   qreal cellScale(const QString &id, qint64 now) const;
   void updateScales();
 

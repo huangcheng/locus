@@ -35,6 +35,7 @@
 #include <QStackedWidget>
 #include <QTimer>
 #include <QToolButton>
+#include <QUrl>
 #include <QUuid>
 #include <QVariantAnimation>
 #include <QVBoxLayout>
@@ -393,6 +394,22 @@ protected:
       QFrame::keyPressEvent(event);
   }
 
+  // Show the focus ring only for keyboard navigation (:focus-visible); a
+  // mouse click also grabs focus but the checked border already marks it.
+  void focusInEvent(QFocusEvent *event) override {
+    keyboardFocus_ = event->reason() == Qt::TabFocusReason ||
+                     event->reason() == Qt::BacktabFocusReason ||
+                     event->reason() == Qt::ShortcutFocusReason;
+    QFrame::focusInEvent(event);
+    update();
+  }
+
+  void focusOutEvent(QFocusEvent *event) override {
+    keyboardFocus_ = false;
+    QFrame::focusOutEvent(event);
+    update();
+  }
+
   void paintEvent(QPaintEvent *) override {
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing);
@@ -421,10 +438,12 @@ protected:
     f.setPixelSize(10);
     p.setFont(f);
     p.drawText(QRectF(0, 74, width(), 13), Qt::AlignHCenter, caption_);
-    if (hasFocus()) {
+    if (hasFocus() && keyboardFocus_) {
+      // Inset ring: drawn outside the widget the stroke is clipped to a
+      // sliver and reads as a broken second border.
       p.setPen(QPen(pal_.amber, 1.5));
       p.setBrush(Qt::NoBrush);
-      p.drawRoundedRect(r.adjusted(-2, -2, 2, 2), 11, 11);
+      p.drawRoundedRect(r.adjusted(3, 3, -3, -3), 7, 7);
     }
   }
 
@@ -433,6 +452,7 @@ private:
   QString title_;
   QString caption_;
   bool checked_ = false;
+  bool keyboardFocus_ = false;
   Palette pal_ = paletteFor(Appearance::Dark);
 };
 
@@ -781,6 +801,28 @@ public:
   std::function<void()> onRemove = [] {};
 };
 
+// Which dropped files count as "an app". Windows shortcuts launch and icon
+// through the shell, so .lnk is pinned as-is (no COM round-trip); the store
+// dedups by path.
+static bool isDroppableAppPath(const QString &path) {
+#if defined(Q_OS_MAC)
+  return path.endsWith(QLatin1String(".app"), Qt::CaseInsensitive);
+#elif defined(Q_OS_WIN)
+  return path.endsWith(QLatin1String(".exe"), Qt::CaseInsensitive) ||
+         path.endsWith(QLatin1String(".lnk"), Qt::CaseInsensitive);
+#else
+  return true;
+#endif
+}
+
+static QStringList droppableAppPaths(const QMimeData *mime) {
+  QStringList paths;
+  for (const QUrl &url : mime->urls())
+    if (url.isLocalFile() && isDroppableAppPath(url.toLocalFile()))
+      paths << url.toLocalFile();
+  return paths;
+}
+
 // QListWidget with an actually visible drop indicator (accent pill + dot)
 // and a floating row thumbnail while dragging — the default 1px line is
 // easy to miss, and item widgets never render into Qt's drag pixmap.
@@ -788,12 +830,23 @@ class PinListWidget : public QListWidget {
 public:
   explicit PinListWidget(QWidget *parent = nullptr) : QListWidget(parent) {}
 
+  // External file drops (add apps). Internal reorder drags keep the
+  // InternalMove path untouched.
+  std::function<void(const QStringList &paths)> onAppsDropped;
+
+  static bool isExternalFileDrag(const QDropEvent *event) {
+    // InternalMove drags carry the model's own format, not urls.
+    return event->mimeData()->hasUrls() &&
+           !event->mimeData()->hasFormat(
+               QStringLiteral("application/x-qabstractitemmodeldatalist"));
+  }
+
+
   void setIndicatorColor(const QColor &color) {
     indicatorColor_ = color;
     viewport()->update();
   }
 
-protected:
   void mousePressEvent(QMouseEvent *event) override {
     pressPos_ = event->pos();
     QListWidget::mousePressEvent(event);
@@ -815,7 +868,23 @@ protected:
     drag->exec(Qt::MoveAction, Qt::MoveAction);
   }
 
+  void dragEnterEvent(QDragEnterEvent *event) override {
+    if (isExternalFileDrag(event) &&
+        !droppableAppPaths(event->mimeData()).isEmpty()) {
+      event->setDropAction(Qt::CopyAction);
+      event->accept();
+      return;
+    }
+    QListWidget::dragEnterEvent(event);
+  }
+
   void dragMoveEvent(QDragMoveEvent *event) override {
+    if (isExternalFileDrag(event) &&
+        !droppableAppPaths(event->mimeData()).isEmpty()) {
+      event->setDropAction(Qt::CopyAction);
+      event->accept();
+      return;
+    }
     QListWidget::dragMoveEvent(event);
     dropPos_ = event->position().toPoint();
     viewport()->update();
@@ -828,6 +897,14 @@ protected:
   }
 
   void dropEvent(QDropEvent *event) override {
+    if (isExternalFileDrag(event)) {
+      const QStringList paths = droppableAppPaths(event->mimeData());
+      if (!paths.isEmpty() && onAppsDropped)
+        onAppsDropped(paths);
+      event->setDropAction(Qt::CopyAction);
+      event->accept();
+      return;
+    }
     QListWidget::dropEvent(event);
     dropPos_ = QPoint();
     viewport()->update();
@@ -962,6 +1039,95 @@ void PrefsWindow::keyPressEvent(QKeyEvent *event) {
     return;
   }
   QWidget::keyPressEvent(event);
+}
+
+void PrefsWindow::setUpdateIdle() {
+  updateState_ = UpdateState::Idle;
+  applyUpdateState();
+}
+
+void PrefsWindow::setUpdateChecking() {
+  updateState_ = UpdateState::Checking;
+  applyUpdateState();
+}
+
+void PrefsWindow::setUpdateUpToDate() {
+  updateState_ = UpdateState::UpToDate;
+  applyUpdateState();
+}
+
+void PrefsWindow::setUpdateAvailable(const QString &version, qint64 bytes) {
+  updateState_ = UpdateState::Available;
+  updateVersion_ = version;
+  updateBytes_ = bytes;
+  applyUpdateState();
+}
+
+void PrefsWindow::setUpdateProgress(qint64 received, qint64 total) {
+  updateState_ = UpdateState::Downloading;
+  updatePercent_ = total > 0 ? int(received * 100 / total) : -1;
+  applyUpdateState();
+}
+
+void PrefsWindow::setUpdateReady() {
+  updateState_ = UpdateState::Ready;
+  applyUpdateState();
+}
+
+void PrefsWindow::setUpdateFailed(const QString &message) {
+  updateState_ = UpdateState::Failed;
+  updateError_ = message;
+  applyUpdateState();
+}
+
+void PrefsWindow::applyUpdateState() {
+  if (!updateBtn_) // card not built yet
+    return;
+  updateBtn_->setEnabled(true);
+  switch (updateState_) {
+  case UpdateState::Idle:
+    updateBtn_->setText(tr("Check now"));
+    updateStatus_->setText(tr("Version %1").arg(QStringLiteral(LOCUS_VERSION)));
+    break;
+  case UpdateState::Checking:
+    updateBtn_->setText(tr("Checking…"));
+    updateBtn_->setEnabled(false);
+    updateStatus_->setText(tr("Contacting the update feed…"));
+    break;
+  case UpdateState::UpToDate:
+    updateBtn_->setText(tr("Check now"));
+    updateStatus_->setText(
+        tr("Locus %1 is up to date.").arg(QStringLiteral(LOCUS_VERSION)));
+    break;
+  case UpdateState::Available: {
+    updateBtn_->setText(tr("Download && Install"));
+    const QString size = updateBytes_ > 0
+        ? tr(" (%1 MB)").arg(updateBytes_ / 1048576.0, 0, 'f', 1)
+        : QString();
+    updateStatus_->setText(
+        tr("Locus %1 is available%2.").arg(updateVersion_, size));
+    break;
+  }
+  case UpdateState::Downloading:
+    updateBtn_->setEnabled(false);
+    if (updatePercent_ >= 0) {
+      updateBtn_->setText(tr("%1%").arg(updatePercent_));
+      updateStatus_->setText(tr("Downloading update…"));
+    } else {
+      updateBtn_->setText(tr("…"));
+      updateStatus_->setText(tr("Downloading update…"));
+    }
+    break;
+  case UpdateState::Ready:
+    updateBtn_->setText(tr("Install && Restart"));
+    updateStatus_->setText(tr("Locus %1 is verified and ready to install.")
+                               .arg(updateVersion_));
+    break;
+  case UpdateState::Failed:
+    updateBtn_->setText(tr("Check now"));
+    updateStatus_->setText(tr("Update failed: %1").arg(updateError_));
+    break;
+  }
 }
 
 void PrefsWindow::applyPalette() {
@@ -1126,12 +1292,14 @@ void PrefsWindow::retranslateUi() {
                              "while Locus is in the background."));
   loginLabel_->setText(tr("Launch at login"));
   loginToggle_->setAccessibleName(tr("Launch at login"));
+  updateLabel_->setText(tr("Updates"));
+  applyUpdateState();
 
   // Pins
   pinsTitle_->setText(tr("Pinned Apps"));
   addAppBtn_->setText(tr("Add App"));
-  pinsNote_->setText(
-      tr("Drag to reorder — the widget reflows the grid instantly."));
+  pinsNote_->setText(tr("Drop an app or shortcut here to pin it; "
+                        "drag rows to reorder."));
 
   // Density
   updateDensityStrings();
@@ -1308,6 +1476,41 @@ QWidget *PrefsWindow::buildGeneralPane() {
   loginRow->addWidget(toggle, 0, Qt::AlignRight);
   lay->addWidget(loginCard);
 
+  // Updates
+  auto *updateCard = new QFrame(pane);
+  updateCard->setObjectName(QStringLiteral("card"));
+  auto *updateLay = new QVBoxLayout(updateCard);
+  updateLay->setContentsMargins(16, 14, 16, 14);
+  updateLay->setSpacing(10);
+  auto *updateRow = new QHBoxLayout;
+  updateLabel_ = new QLabel(tr("Updates"), updateCard);
+  updateRow->addWidget(updateLabel_);
+  updateBtn_ = new QPushButton(updateCard);
+  updateBtn_->setObjectName(QStringLiteral("amberBtn"));
+  updateBtn_->setCursor(Qt::PointingHandCursor);
+  updateRow->addWidget(updateBtn_, 0, Qt::AlignRight);
+  updateLay->addLayout(updateRow);
+  updateStatus_ = new QLabel(updateCard);
+  updateStatus_->setObjectName(QStringLiteral("caption"));
+  updateStatus_->setWordWrap(true);
+  updateLay->addWidget(updateStatus_);
+  lay->addWidget(updateCard);
+  connect(updateBtn_, &QPushButton::clicked, this, [this] {
+    // Button action follows the card state; main.cpp owns the transitions.
+    switch (updateState_) {
+    case UpdateState::Available:
+      emit updateDownloadRequested();
+      break;
+    case UpdateState::Ready:
+      emit updateInstallRequested();
+      break;
+    default:
+      emit updateCheckRequested();
+      break;
+    }
+  });
+  applyUpdateState();
+
   lay->addStretch();
   return pane;
 }
@@ -1343,6 +1546,14 @@ QWidget *PrefsWindow::buildPinsPane() {
   pinList_->setSelectionMode(QAbstractItemView::SingleSelection);
   pinList_->setDragDropMode(QAbstractItemView::InternalMove);
   pinList_->setDefaultDropAction(Qt::MoveAction);
+  pinList_->setAcceptDrops(true); // external app drops + internal reorder
+  static_cast<PinListWidget *>(pinList_)->onAppsDropped =
+      [this](const QStringList &paths) {
+        for (const QString &path : paths)
+          addAppFromPath(path);
+        reloadPinRows();
+        emit pinsChanged();
+      };
   pinList_->setSpacing(2);
   pinList_->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
   // The scroll-area viewport auto-fills QPalette::Base (white) — kill it so
@@ -1356,7 +1567,8 @@ QWidget *PrefsWindow::buildPinsPane() {
           [this] { commitPinOrder(); });
 
   pinsNote_ = new QLabel(
-      tr("Drag to reorder — the widget reflows the grid instantly."), pane);
+      tr("Drop an app or shortcut here to pin it; drag rows to reorder."),
+      pane);
   pinsNote_->setObjectName(QStringLiteral("caption"));
   lay->addWidget(pinsNote_);
   return pane;
@@ -1545,13 +1757,18 @@ void PrefsWindow::selectPane(int index) {
 
 void PrefsWindow::reloadPinRows() {
   reloadingPins_ = true;
-  // clear() alone can leave item widgets orphaned on the viewport — remove
-  // and delete every row explicitly so no zombie rows linger or double-draw.
+  // clear() alone can leave item widgets orphaned on the viewport — detach
+  // every row explicitly so no zombie rows linger or double-draw. Deletion
+  // must be DEFERRED: reloadPinRows can run inside a row's own clicked
+  // emission (× button), and deleting the emitter mid-signal is
+  // use-after-free. hide() keeps the zombie from painting before the event
+  // loop reaps it.
   for (int i = 0; i < pinList_->count(); ++i) {
     QListWidgetItem *item = pinList_->item(i);
     if (QWidget *w = pinList_->itemWidget(item)) {
       pinList_->removeItemWidget(item);
-      delete w;
+      w->hide();
+      w->deleteLater();
     }
   }
   pinList_->clear();
@@ -1597,21 +1814,7 @@ void PrefsWindow::commitPinOrder() {
   QTimer::singleShot(0, this, [this] { reloadPinRows(); });
 }
 
-void PrefsWindow::addApp() {
-#if defined(Q_OS_MAC)
-  const QString startDir = QStringLiteral("/Applications");
-  const QString filter = tr("Applications (*.app)");
-#elif defined(Q_OS_WIN)
-  const QString startDir = QStringLiteral("C:/Program Files");
-  const QString filter = tr("Programs (*.exe)");
-#else
-  const QString startDir = QDir::homePath();
-  const QString filter = tr("All files (*)");
-#endif
-  const QString path =
-      QFileDialog::getOpenFileName(this, tr("Add App"), startDir, filter);
-  if (path.isEmpty())
-    return;
+void PrefsWindow::addAppFromPath(const QString &path) {
   // The native dialog returns bundle paths with a trailing slash, and
   // QFileInfo::completeBaseName() on those is empty — clean first.
   const QString clean = QDir::cleanPath(path);
@@ -1621,6 +1824,24 @@ void PrefsWindow::addApp() {
   pin.label = QFileInfo(clean).completeBaseName();
   pin.iconKey = clean;
   pins_->addPin(pin);
+}
+
+void PrefsWindow::addApp() {
+#if defined(Q_OS_MAC)
+  const QString startDir = QStringLiteral("/Applications");
+  const QString filter = tr("Applications (*.app)");
+#elif defined(Q_OS_WIN)
+  const QString startDir = QStringLiteral("C:/Program Files");
+  const QString filter = tr("Programs (*.exe;*.lnk)");
+#else
+  const QString startDir = QDir::homePath();
+  const QString filter = tr("All files (*)");
+#endif
+  const QString path =
+      QFileDialog::getOpenFileName(this, tr("Add App"), startDir, filter);
+  if (path.isEmpty())
+    return;
+  addAppFromPath(path);
   reloadPinRows();
   emit pinsChanged();
 }

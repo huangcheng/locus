@@ -43,6 +43,15 @@ public:
   /// Switch the visible pane (0 General, 1 Pins, 2 Density).
   void selectPane(int index);
 
+  // Updates card state (driven by main.cpp's UpdateChecker/UpdateDownloader).
+  void setUpdateIdle();
+  void setUpdateChecking();
+  void setUpdateUpToDate();
+  void setUpdateAvailable(const QString &version, qint64 bytes);
+  void setUpdateProgress(qint64 received, qint64 total);
+  void setUpdateReady();
+  void setUpdateFailed(const QString &message);
+
 signals:
   void appearanceChanged();
   void styleChanged();
@@ -50,6 +59,9 @@ signals:
   void pinsChanged();
   void languageChanged();
   void hotkeyChanged();
+  void updateCheckRequested();
+  void updateDownloadRequested();
+  void updateInstallRequested();
 
 protected:
   void showEvent(QShowEvent *event) override;
@@ -65,7 +77,12 @@ private:
   void reloadPinRows();
   void commitPinOrder();
   void addApp();
+  void addAppFromPath(const QString &path);
   void updateDensityStrings();
+  void applyUpdateState();
+
+  enum class UpdateState { Idle, Checking, UpToDate, Available, Downloading,
+                           Ready, Failed };
 
   Prefs *prefs_;
   PinStore *pins_;
@@ -91,6 +108,14 @@ private:
   QWidget *hotkeyField_ = nullptr;
   QLabel *loginLabel_ = nullptr;
   QWidget *loginToggle_ = nullptr;
+  QLabel *updateLabel_ = nullptr;
+  QLabel *updateStatus_ = nullptr;
+  QPushButton *updateBtn_ = nullptr;
+  UpdateState updateState_ = UpdateState::Idle;
+  QString updateVersion_;
+  qint64 updateBytes_ = 0;
+  int updatePercent_ = -1; // -1 = indeterminate
+  QString updateError_;
 
   // Pins pane
   QLabel *pinsTitle_ = nullptr;
