@@ -48,18 +48,23 @@ jobs:
           }
           "LOCUS_VERSION=$tag" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
 
-      - name: Configure and build
-        run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-          cmake --build build --parallel
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      # No -G: the default Visual Studio generator selects MSVC. (-G Ninja
+      # would pick up the runner's MinGW gcc, which can't link the
+      # msvc2022_64 Qt kit.)
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
 
       - name: Test
-        run: ctest --test-dir build --output-on-failure
+        run: ctest --test-dir build -C Release --output-on-failure
 
       - name: Package installer and feed
         shell: pwsh
         run: |
-          cmake --install build --prefix build\stage
+          cmake --install build --prefix build\stage --config Release
           iscc /DStageDir=build\stage /DOutputDirPath=build\dist installer.iss
           if ($LASTEXITCODE -ne 0) { throw "iscc failed" }
           $v = $env:LOCUS_VERSION
