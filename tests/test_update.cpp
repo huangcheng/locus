@@ -105,7 +105,13 @@ private slots:
     const UpdateInfo info =
         qvariant_cast<UpdateInfo>(spy.first().first());
     QCOMPARE(info.version, QStringLiteral("0.2.0"));
+    // The macOS enclosure carries no sha256 (Sparkle uses edSignature), so
+    // only the Windows enclosure proves hash parsing.
+#if defined(Q_OS_WIN)
     QCOMPARE(info.sha256, QStringLiteral("aabbcc"));
+#else
+    QVERIFY(info.sha256.isEmpty());
+#endif
   }
 
   void checkerReportsUpToDate() {
