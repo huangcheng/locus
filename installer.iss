@@ -10,7 +10,7 @@
 ; cmake-build-release\dist\.
 
 ; keep in sync with project(locus VERSION ...)
-#define AppVersion "1.0.0"
+#define AppVersion "0.1.0"
 
 ; CI overrides these with /D (release.yml builds into build\ instead).
 #ifndef StageDir

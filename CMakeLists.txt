@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(locus VERSION 1.0.0 LANGUAGES CXX)
+project(locus VERSION 0.1.0 LANGUAGES CXX)
 
 # Matches LSMinimumSystemVersion in macos/Info.plist. Without this the binary
 # inherits the build SDK's minimum (macOS 27) and refuses to launch on 13–26.
