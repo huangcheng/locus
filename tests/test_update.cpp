@@ -88,6 +88,10 @@ private slots:
   }
 
   void checkerReportsNewerRelease() {
+#if !defined(Q_OS_WIN) && !defined(Q_OS_MAC)
+    // Linux maps to no feed enclosure by design — checkFailed, not an update.
+    QSKIP("no self-update on Linux");
+#endif
     QTemporaryDir dir;
     QVERIFY(dir.isValid());
     const QString feedPath = dir.filePath(QStringLiteral("appcast.xml"));
@@ -115,6 +119,9 @@ private slots:
   }
 
   void checkerReportsUpToDate() {
+#if !defined(Q_OS_WIN) && !defined(Q_OS_MAC)
+    QSKIP("no self-update on Linux");
+#endif
     QTemporaryDir dir;
     QVERIFY(dir.isValid());
     const QString feedPath = dir.filePath(QStringLiteral("appcast.xml"));

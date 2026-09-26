@@ -105,8 +105,13 @@ void UpdateChecker::finish(const QByteArray &xml) {
 QString UpdateChecker::hostOs() {
 #if defined(Q_OS_MAC)
   return QStringLiteral("macos");
-#else
+#elif defined(Q_OS_WIN)
   return QStringLiteral("windows-x64");
+#else
+  // Linux intentionally maps to no feed enclosure: package managers own
+  // updates there, so the checker reports "no usable release" (checkFailed)
+  // instead of offering a foreign installer.
+  return QStringLiteral("linux");
 #endif
 }
 
