@@ -2,6 +2,7 @@
 #include "core/PinStore.h"
 #include "core/Prefs.h"
 #include "core/SessionController.h"
+#include "core/SearchFilter.h"
 #include "core/UpdateChecker.h"
 #include "core/UpdateDownloader.h"
 #include "layout/CellularLayoutStrategy.h"
@@ -30,6 +31,7 @@
 #include <QSettings>
 #include <QStyleHints>
 #include <QProcess>
+#include <QMenu>
 #include <QTimer>
 #include <QUuid>
 
@@ -147,8 +149,10 @@ int main(int argc, char *argv[]) {
   };
 
   auto rebuild = [&] {
-    const auto scene = pickStrategy()->build(pinStore.pins(), session.focusedId(),
-                                             prefs.density());
+    const auto scene =
+        pickStrategy()->build(locus::filterPins(pinStore.pins(),
+                                                overlay.searchQuery()),
+                              session.focusedId(), prefs.density());
     view->setScene(scene);
     overlay.resizeToContent();
     // Only while shown: a hidden overlay still carries its stale frame (and
@@ -173,6 +177,7 @@ int main(int argc, char *argv[]) {
   };
 
   auto showMenuAt = [&](const QPoint &anchor) {
+    overlay.resetSearch(); // search is per-summon, like Spotlight
     session.open();
     if (session.focusedId().isEmpty() && !pinStore.pins().isEmpty())
       session.setFocus(pinStore.pins().first().id);
@@ -189,6 +194,10 @@ int main(int argc, char *argv[]) {
     locus::macActivateApplication();
   };
 
+  locus::TrayController tray;
+  locus::PrefsWindow prefsWindow(&prefs, &pinStore, &icons);
+  prefsWindow.setResolvedAppearance(resolveAppearance());
+
   // Tray summon centers on the primary screen (cursor-anchored summon is the
   // global hotkey's job), falling back to the cursor position if none exists.
   auto showMenu = [&] {
@@ -204,7 +213,30 @@ int main(int argc, char *argv[]) {
     overlay.hide();
   };
 
+  // Shared by view activation, the context menu's Launch, and search Return.
+  auto launchPin = [&](const QString &id) {
+    session.setFocus(id);
+    const QString activated = session.activate();
+    if (activated.isEmpty())
+      return;
+    for (const auto &pin : pinStore.pins()) {
+      if (pin.id == activated) {
+        launcher.launch(pin.appPath);
+        break;
+      }
+    }
+    // Let the click dip finish before the widget disappears; skip the hide
+    // if the menu was re-summoned in the meantime (session open again).
+    QTimer::singleShot(180, &overlay, [&] {
+      if (!session.isOpen())
+        overlay.hide();
+    });
+  };
+
   auto wireView = [&](auto *v) {
+    // The search field owns keyboard focus; views are mouse-only (their
+    // Esc/Return handling is superseded by the search strip).
+    v->setFocusPolicy(Qt::NoFocus);
     using V = std::remove_pointer_t<decltype(v)>;
     QObject::connect(v, &V::itemHovered, &session, [&](const QString &id) {
       if (id.isEmpty())
@@ -212,23 +244,49 @@ int main(int argc, char *argv[]) {
       session.setFocus(id);
       rebuild();
     });
-    QObject::connect(v, &V::itemActivated, &app, [&](const QString &id) {
-      session.setFocus(id);
-      const QString activated = session.activate();
-      if (activated.isEmpty())
-        return;
-      for (const auto &pin : pinStore.pins()) {
-        if (pin.id == activated) {
-          launcher.launch(pin.appPath);
+    QObject::connect(v, &V::itemActivated, &app, launchPin);
+
+    QObject::connect(v, &V::itemContextMenuRequested, &app,
+                     [&](const QString &id, const QPoint &globalPos) {
+      const locus::Pin *pin = nullptr;
+      for (const auto &p : pinStore.pins())
+        if (p.id == id) {
+          pin = &p;
           break;
         }
+      if (!pin)
+        return;
+
+      auto tr = [](const char *text) {
+        return QCoreApplication::translate("Locus", text);
+      };
+      QMenu menu;
+      QAction *launchAction = menu.addAction(tr("Launch"));
+      QAction *revealAction =
+          menu.addAction(tr("Open File Location"));
+#ifdef Q_OS_WIN
+      QAction *elevatedAction = nullptr;
+      if (pin->appPath.endsWith(QLatin1String(".exe"), Qt::CaseInsensitive))
+        elevatedAction = menu.addAction(tr("Run as Administrator"));
+#endif
+      menu.addSeparator();
+      QAction *unpinAction = menu.addAction(tr("Unpin"));
+
+      QAction *chosen = menu.exec(globalPos);
+      if (chosen == launchAction) {
+        launchPin(id);
+      } else if (chosen == revealAction) {
+        launcher.revealInFileManager(pin->appPath);
+#ifdef Q_OS_WIN
+      } else if (elevatedAction && chosen == elevatedAction) {
+        launcher.launchElevated(pin->appPath);
+        hideMenu();
+#endif
+      } else if (chosen == unpinAction) {
+        pinStore.removePin(id);
+        rebuild();
+        prefsWindow.refreshFromModel();
       }
-      // Let the click dip finish before the widget disappears; skip the hide
-      // if the menu was re-summoned in the meantime (session open again).
-      QTimer::singleShot(180, &overlay, [&] {
-        if (!session.isOpen())
-          overlay.hide();
-      });
     });
     QObject::connect(v, &V::dismissRequested, &app, hideMenu);
   };
@@ -264,6 +322,20 @@ int main(int argc, char *argv[]) {
     applyIcons();
   };
 
+  // Type-to-search: typing refilters the scene, Return launches the first
+  // match, Esc clears (then dismisses — handled inside the search field).
+  QObject::connect(&overlay, &locus::OverlayWindow::searchChanged, &app,
+                   [&](const QString &) { rebuild(); });
+  QObject::connect(&overlay, &locus::OverlayWindow::searchActivated, &app,
+                   [&] {
+                     const auto matches = locus::filterPins(
+                         pinStore.pins(), overlay.searchQuery());
+                     if (!matches.isEmpty())
+                       launchPin(matches.first().id);
+                   });
+  QObject::connect(&overlay, &locus::OverlayWindow::searchDismissed, &app,
+                   hideMenu);
+
   // (Re)create the launcher view — at startup and when the menu style
   // changes in Settings.
   auto applyStyle = [&] {
@@ -283,9 +355,6 @@ int main(int argc, char *argv[]) {
                        hideMenu();
                    });
 
-  locus::TrayController tray;
-  locus::PrefsWindow prefsWindow(&prefs, &pinStore, &icons);
-  prefsWindow.setResolvedAppearance(resolveAppearance());
 
   auto applyAppearance = [&] {
     const locus::Appearance resolved = resolveAppearance();
@@ -392,7 +461,8 @@ int main(int argc, char *argv[]) {
                    &app, [&](const locus::UpdateInfo &info) {
                      hasPendingUpdate = true;
                      pendingUpdate = info;
-                     prefsWindow.setUpdateAvailable(info.version, info.size);
+                     prefsWindow.setUpdateAvailable(info.version, info.size,
+                                                    info.notes);
                      if (!manualCheck)
                        tray.showUpdateAvailable(info.version);
                    });

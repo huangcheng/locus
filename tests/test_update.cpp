@@ -42,6 +42,8 @@ private slots:
     QCOMPARE(win.first().sha256, QStringLiteral("aabbcc"));
     QCOMPARE(win.first().size, qint64(24129834));
     QCOMPARE(win.last().version, QStringLiteral("0.1.5"));
+    QCOMPARE(win.first().notes,
+             QStringLiteral("New honeycomb glow and fixes"));
 
     const QVector<UpdateInfo> mac =
         UpdateChecker::parseAppcast(feed, QStringLiteral("macos"));

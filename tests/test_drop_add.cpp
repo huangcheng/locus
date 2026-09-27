@@ -1,6 +1,7 @@
-// Drag-and-drop app adding: dropping app files onto the Pins list pins them
-// (duplicates deduped by path), and non-app drags are rejected so the cursor
-// never promises a drop that no-ops. Delivery goes through the real
+// Drag-and-drop pinning: any existing local file or folder can be dropped
+// onto the Pins list (apps, shortcuts, documents, folders — the OS handler
+// launches them all). Web URLs and nonexistent paths are rejected so the
+// cursor never promises a drop that no-ops. Delivery goes through the real
 // window-system event path — synthetic sendEvent drags never reach the
 // widget's drag handlers.
 #include "core/PinStore.h"
@@ -9,7 +10,7 @@
 #include "ui/PrefsWindow.h"
 
 #include <QDir>
-#include <QFileInfo>
+#include <QFile>
 #include <QGuiApplication>
 #include <QListWidget>
 #include <QMimeData>
@@ -17,25 +18,12 @@
 #include <QTemporaryDir>
 #include <QtTest>
 #include <QToolButton>
+
 #include <qpa/qwindowsysteminterface.h>
 #include <qpa/qplatformdrag.h>
 
 class DropAddTest : public QObject {
   Q_OBJECT
-
-#if defined(Q_OS_MAC)
-  const QString appPath_ = QStringLiteral("/Applications/Foo.app");
-  const QString shortcutPath_ = QStringLiteral("/Applications/Bar.app");
-  const QString junkPath_ = QStringLiteral("/tmp/notes.txt");
-#elif defined(Q_OS_WIN)
-  const QString appPath_ = QStringLiteral("C:/Apps/Foo.exe");
-  const QString shortcutPath_ = QStringLiteral("C:/Users/x/Desktop/Bar.lnk");
-  const QString junkPath_ = QStringLiteral("C:/Apps/notes.txt");
-#else
-  const QString appPath_ = QStringLiteral("/opt/foo/bin/foo");
-  const QString shortcutPath_ = QStringLiteral("/opt/bar/bin/bar");
-  const QString junkPath_;
-#endif
 
   struct Fixture {
     QTemporaryDir dir;
@@ -45,6 +33,9 @@ class DropAddTest : public QObject {
     locus::IconProvider icons;
     locus::PrefsWindow win;
     QListWidget *list = nullptr;
+    QString filePath;   // a real file that exists
+    QString folderPath; // a real folder
+    QString appPath;    // a real "app" (.exe on Windows)
 
     Fixture()
         : settings(dir.filePath(QStringLiteral("prefs.ini")),
@@ -56,6 +47,22 @@ class DropAddTest : public QObject {
       existing.label = QStringLiteral("Existing");
       existing.appPath = QStringLiteral("/tmp/existing.app");
       pins.addPin(existing);
+
+      filePath = dir.filePath(QStringLiteral("notes.txt"));
+      folderPath = dir.filePath(QStringLiteral("Tools"));
+#if defined(Q_OS_WIN)
+      appPath = dir.filePath(QStringLiteral("Foo.exe"));
+#else
+      appPath = dir.filePath(QStringLiteral("Foo.app"));
+#endif
+      for (const QString &p : {filePath, appPath}) {
+        QFile f(p);
+        f.open(QIODevice::WriteOnly);
+        f.write("x");
+        f.close();
+      }
+      QDir().mkpath(folderPath);
+
       const auto lists = win.findChildren<QListWidget *>();
       if (!lists.isEmpty())
         list = lists.first();
@@ -66,8 +73,23 @@ class DropAddTest : public QObject {
     }
   };
 
+  // Delivers drag + drop at the list's top-left. Returns the drop response.
+  static QPlatformDropQtResponse dragDrop(Fixture &f, QMimeData &mime) {
+    QWindow *wh = f.win.windowHandle();
+    const QPoint local = f.list->mapToGlobal(QPoint(15, 15)) -
+                         wh->geometry().topLeft();
+    QWindowSystemInterface::handleDrag(wh, &mime, local, Qt::CopyAction,
+                                       Qt::LeftButton, Qt::NoModifier);
+    QCoreApplication::processEvents();
+    const auto resp = QWindowSystemInterface::handleDrop(
+        wh, &mime, local, Qt::CopyAction, Qt::LeftButton, Qt::NoModifier);
+    QCoreApplication::processEvents();
+    QCoreApplication::processEvents();
+    return resp;
+  }
+
 private slots:
-  void dropAddsAppFiles() {
+  void dropPinsFilesAndFolders() {
     // Global-position delivery needs a real windowing platform.
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
       QSKIP("no window server");
@@ -75,62 +97,46 @@ private slots:
     QVERIFY(f.list);
 
     QMimeData mime;
-    mime.setUrls(
-        {QUrl::fromLocalFile(appPath_), QUrl::fromLocalFile(shortcutPath_)});
-    QWindow *wh = f.win.windowHandle();
-    QVERIFY(wh);
-    // WSI drag/drop take window-local coordinates and deliver through the
-    // platform drag manager.
-    const QPoint local = f.list->mapToGlobal(QPoint(15, 15)) -
-                         wh->geometry().topLeft();
+    mime.setUrls({QUrl::fromLocalFile(f.appPath),
+                  QUrl::fromLocalFile(f.filePath),
+                  QUrl::fromLocalFile(f.folderPath)});
+    const auto resp = dragDrop(f, mime);
+    QVERIFY2(resp.isAccepted(), "file/folder drop was rejected");
 
-    const QPlatformDragQtResponse dragResp = QWindowSystemInterface::handleDrag(
-        wh, &mime, local, Qt::CopyAction, Qt::LeftButton, Qt::NoModifier);
-    QCoreApplication::processEvents();
-    const QPlatformDropQtResponse dropResp = QWindowSystemInterface::handleDrop(
-        wh, &mime, local, Qt::CopyAction, Qt::LeftButton, Qt::NoModifier);
-    QCoreApplication::processEvents();
-    QCoreApplication::processEvents();
-
-    QVERIFY2(dropResp.isAccepted(), "app-file drop was rejected");
-    QCOMPARE(f.pins.pins().size(), 3);
-    QCOMPARE(f.pins.pins().at(1).appPath, QDir::cleanPath(appPath_));
-    QCOMPARE(f.pins.pins().at(1).label, QFileInfo(appPath_).completeBaseName());
+    QCOMPARE(f.pins.pins().size(), 4); // 1 existing + 3 dropped
+    QCOMPARE(f.pins.pins().at(1).label,
+             QFileInfo(f.appPath).completeBaseName());
+    QCOMPARE(f.pins.pins().at(2).label, QStringLiteral("notes"));
+    // Folders take their directory name as the label.
+    QCOMPARE(f.pins.pins().at(3).label, QStringLiteral("Tools"));
+    QVERIFY(QFileInfo(f.pins.pins().at(3).appPath).isDir());
 
     // Rows rebuilt: one × per pin.
     int rows = 0;
     for (QToolButton *b : f.win.findChildren<QToolButton *>())
       if (b->text() == QStringLiteral("×"))
         ++rows;
-    QCOMPARE(rows, 3);
+    QCOMPARE(rows, 4);
 
-    // Dropping the same app again dedups by path.
-    QWindowSystemInterface::handleDrop(wh, &mime, local, Qt::CopyAction,
-                                       Qt::LeftButton, Qt::NoModifier);
-    QCoreApplication::processEvents();
-    QCoreApplication::processEvents();
-    QCOMPARE(f.pins.pins().size(), 3);
+    // Re-dropping the same paths dedups.
+    dragDrop(f, mime);
+    QCOMPARE(f.pins.pins().size(), 4);
   }
 
-#if defined(Q_OS_WIN) || defined(Q_OS_MAC)
-  void junkDragRejected() {
+  void webUrlsAndMissingPathsRejected() {
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
       QSKIP("no window server");
     Fixture f;
     QVERIFY(f.list);
 
     QMimeData mime;
-    mime.setUrls({QUrl::fromLocalFile(junkPath_)});
-    QWindow *wh = f.win.windowHandle();
-    QVERIFY(wh);
-    const QPoint local = f.list->mapToGlobal(QPoint(15, 15)) -
-                         wh->geometry().topLeft();
-    const QPlatformDragQtResponse resp = QWindowSystemInterface::handleDrag(
-        wh, &mime, local, Qt::CopyAction, Qt::LeftButton, Qt::NoModifier);
-    QCoreApplication::processEvents();
+    mime.setUrls(
+        {QUrl(QStringLiteral("https://example.com/app")),
+         QUrl::fromLocalFile(f.dir.filePath(QStringLiteral("ghost.exe")))});
+    const auto resp = dragDrop(f, mime);
     QVERIFY(!resp.isAccepted());
+    QCOMPARE(f.pins.pins().size(), 1); // only the pre-existing pin
   }
-#endif
 };
 
 QTEST_MAIN(DropAddTest)

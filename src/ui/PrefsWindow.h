@@ -47,7 +47,8 @@ public:
   void setUpdateIdle();
   void setUpdateChecking();
   void setUpdateUpToDate();
-  void setUpdateAvailable(const QString &version, qint64 bytes);
+  void setUpdateAvailable(const QString &version, qint64 bytes,
+                          const QString &notes);
   void setUpdateProgress(qint64 received, qint64 total);
   void setUpdateReady();
   void setUpdateFailed(const QString &message);
@@ -114,6 +115,7 @@ private:
   UpdateState updateState_ = UpdateState::Idle;
   QString updateVersion_;
   qint64 updateBytes_ = 0;
+  QString updateNotes_;
   int updatePercent_ = -1; // -1 = indeterminate
   QString updateError_;
 

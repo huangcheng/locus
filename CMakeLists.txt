@@ -140,6 +140,8 @@ else()
     "${Qt6Core_INCLUDE_DIRS}/${Qt6Core_VERSION}/QtCore")
 endif()
 locus_add_test(test_update tests/test_update.cpp)
+locus_add_test(test_pin_menu tests/test_pin_menu.cpp)
+locus_add_test(test_search tests/test_search.cpp)
 
 # --- Packaging -----------------------------------------------------------
 # macOS: DragNDrop DMG · Windows: ZIP · Linux: TGZ. The Qt resources (icons,

@@ -16,6 +16,7 @@ struct UpdateInfo {
   QString version;
   QUrl url;
   qint64 size = 0;    // bytes, from enclosure @length
+  QString notes;      // release notes, from <description> (may be empty)
   QString sha256;     // hex, our sparkle:sha256 extension
   QDateTime pubDate;
 };

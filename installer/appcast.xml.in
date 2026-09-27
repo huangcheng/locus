@@ -8,6 +8,7 @@
     <item>
       <title>@VERSION@</title>
       <pubDate>@DATE@</pubDate>
+      <description>@NOTES@</description>
       <enclosure url="https://github.com/huangcheng/locus/releases/download/v@VERSION@/Locus-@VERSION@-windows-x64-setup.exe"
                  sparkle:version="@VERSION@" sparkle:os="windows-x64"
                  length="@SIZE@" type="application/octet-stream"

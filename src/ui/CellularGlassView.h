@@ -35,13 +35,14 @@ signals:
   void itemHovered(const QString &id);
   void itemActivated(const QString &id);
   void dismissRequested();
+  void itemContextMenuRequested(const QString &id, const QPoint &globalPos);
 
 protected:
   void paintEvent(QPaintEvent *event) override;
   void timerEvent(QTimerEvent *event) override;
   void mouseMoveEvent(QMouseEvent *event) override;
   void mousePressEvent(QMouseEvent *event) override;
-  void keyPressEvent(QKeyEvent *event) override;
+  void contextMenuEvent(QContextMenuEvent *event) override;
   void leaveEvent(QEvent *event) override;
 
 private:

@@ -801,26 +801,28 @@ public:
   std::function<void()> onRemove = [] {};
 };
 
-// Which dropped files count as "an app". Windows shortcuts launch and icon
-// through the shell, so .lnk is pinned as-is (no COM round-trip); the store
-// dedups by path.
-static bool isDroppableAppPath(const QString &path) {
-#if defined(Q_OS_MAC)
-  return path.endsWith(QLatin1String(".app"), Qt::CaseInsensitive);
-#elif defined(Q_OS_WIN)
-  return path.endsWith(QLatin1String(".exe"), Qt::CaseInsensitive) ||
-         path.endsWith(QLatin1String(".lnk"), Qt::CaseInsensitive);
-#else
-  return true;
-#endif
+// Anything launchable can be pinned: apps, shortcuts, documents, folders —
+// AppLauncher goes through the OS handler (QDesktopServices), so they all
+// work. Web URLs are rejected (no favicon strategy yet), as are paths that
+// don't exist.
+static bool isDroppablePath(const QString &path) {
+  return QFileInfo::exists(path);
 }
 
 static QStringList droppableAppPaths(const QMimeData *mime) {
   QStringList paths;
   for (const QUrl &url : mime->urls())
-    if (url.isLocalFile() && isDroppableAppPath(url.toLocalFile()))
+    if (url.isLocalFile() && isDroppablePath(url.toLocalFile()))
       paths << url.toLocalFile();
   return paths;
+}
+
+static QString labelForPath(const QString &clean) {
+  const QFileInfo fi(clean);
+  // Folders have no "extension"; root paths have neither — fall back to the
+  // full path rather than pin a blank label.
+  const QString label = fi.isDir() ? fi.fileName() : fi.completeBaseName();
+  return label.isEmpty() ? clean : label;
 }
 
 // QListWidget with an actually visible drop indicator (accent pill + dot)
@@ -1056,12 +1058,6 @@ void PrefsWindow::setUpdateUpToDate() {
   applyUpdateState();
 }
 
-void PrefsWindow::setUpdateAvailable(const QString &version, qint64 bytes) {
-  updateState_ = UpdateState::Available;
-  updateVersion_ = version;
-  updateBytes_ = bytes;
-  applyUpdateState();
-}
 
 void PrefsWindow::setUpdateProgress(qint64 received, qint64 total) {
   updateState_ = UpdateState::Downloading;
@@ -1071,6 +1067,14 @@ void PrefsWindow::setUpdateProgress(qint64 received, qint64 total) {
 
 void PrefsWindow::setUpdateReady() {
   updateState_ = UpdateState::Ready;
+  applyUpdateState();
+}
+void PrefsWindow::setUpdateAvailable(const QString &version, qint64 bytes,
+                                     const QString &notes) {
+  updateState_ = UpdateState::Available;
+  updateVersion_ = version;
+  updateBytes_ = bytes;
+  updateNotes_ = notes;
   applyUpdateState();
 }
 
@@ -1104,8 +1108,14 @@ void PrefsWindow::applyUpdateState() {
     const QString size = updateBytes_ > 0
         ? tr(" (%1 MB)").arg(updateBytes_ / 1048576.0, 0, 'f', 1)
         : QString();
-    updateStatus_->setText(
-        tr("Locus %1 is available%2.").arg(updateVersion_, size));
+    QString text =
+        tr("Locus %1 is available%2.").arg(updateVersion_, size);
+    if (!updateNotes_.isEmpty()) {
+      // Cap at 3 lines so a long changelog can't blow up the card.
+      const QStringList lines = updateNotes_.split(QLatin1Char('\n'));
+      text += QLatin1Char('\n') + lines.mid(0, 3).join(QLatin1Char('\n'));
+    }
+    updateStatus_->setText(text);
     break;
   }
   case UpdateState::Downloading:
@@ -1205,8 +1215,6 @@ void PrefsWindow::applyPalette() {
 
   static_cast<Toggle *>(loginToggle_)->setColors(p);
   static_cast<StyleTile *>(styleTileHex_)->setPaletteColors(p);
-  static_cast<StyleTile *>(styleTileOrbit_)->setPaletteColors(p);
-  static_cast<StyleTile *>(styleTileFan_)->setPaletteColors(p);
   static_cast<DensityPreview *>(densityPreview_)->setPaletteColors(p);
   static_cast<PinListWidget *>(pinList_)->setIndicatorColor(p.amber);
   static_cast<HotkeyField *>(hotkeyField_)->setPaletteColors(p);
@@ -1298,7 +1306,7 @@ void PrefsWindow::retranslateUi() {
   // Pins
   pinsTitle_->setText(tr("Pinned Apps"));
   addAppBtn_->setText(tr("Add App"));
-  pinsNote_->setText(tr("Drop an app or shortcut here to pin it; "
+  pinsNote_->setText(tr("Drop apps, files, or folders here to pin them; "
                         "drag rows to reorder."));
 
   // Density
@@ -1567,7 +1575,8 @@ QWidget *PrefsWindow::buildPinsPane() {
           [this] { commitPinOrder(); });
 
   pinsNote_ = new QLabel(
-      tr("Drop an app or shortcut here to pin it; drag rows to reorder."),
+      tr("Drop apps, files, or folders here to pin them; drag rows to "
+         "reorder."),
       pane);
   pinsNote_->setObjectName(QStringLiteral("caption"));
   lay->addWidget(pinsNote_);
@@ -1821,7 +1830,7 @@ void PrefsWindow::addAppFromPath(const QString &path) {
   Pin pin;
   pin.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
   pin.appPath = clean;
-  pin.label = QFileInfo(clean).completeBaseName();
+  pin.label = labelForPath(clean);
   pin.iconKey = clean;
   pins_->addPin(pin);
 }
@@ -1832,7 +1841,7 @@ void PrefsWindow::addApp() {
   const QString filter = tr("Applications (*.app)");
 #elif defined(Q_OS_WIN)
   const QString startDir = QStringLiteral("C:/Program Files");
-  const QString filter = tr("Programs (*.exe;*.lnk)");
+  const QString filter = tr("Programs (*.exe *.lnk);;All files (*)");
 #else
   const QString startDir = QDir::homePath();
   const QString filter = tr("All files (*)");

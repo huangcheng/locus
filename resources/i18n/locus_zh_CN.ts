@@ -417,4 +417,34 @@
         <translation>下载的文件未通过完整性校验。</translation>
     </message>
 </context>
+<context>
+    <name>locus::PrefsWindow</name>
+    <message>
+        <source>Drop apps, files, or folders here to pin them; drag rows to reorder.</source>
+        <translation>将应用、文件或文件夹拖到此处即可固定；拖拽行可重新排序。</translation>
+    </message>
+    <message>
+        <source>Programs (*.exe *.lnk);;All files (*)</source>
+        <translation>程序 (*.exe *.lnk);;所有文件 (*)</translation>
+    </message>
+</context>
+<context>
+    <name>Locus</name>
+    <message>
+        <source>Launch</source>
+        <translation>打开</translation>
+    </message>
+    <message>
+        <source>Open File Location</source>
+        <translation>打开文件所在位置</translation>
+    </message>
+    <message>
+        <source>Run as Administrator</source>
+        <translation>以管理员身份运行</translation>
+    </message>
+    <message>
+        <source>Unpin</source>
+        <translation>取消固定</translation>
+    </message>
+</context>
 </TS>

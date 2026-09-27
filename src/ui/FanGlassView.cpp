@@ -3,8 +3,8 @@
 #include "core/HitTest.h"
 #include "platforms/macos/MacActivation.h"
 
-#include <QKeyEvent>
 #include <QMouseEvent>
+#include <QContextMenuEvent>
 #include <QPainter>
 #include <QPainterPath>
 #include <QTransform>
@@ -417,15 +417,12 @@ void FanGlassView::mousePressEvent(QMouseEvent *event) {
     emit dismissRequested();
 }
 
-void FanGlassView::keyPressEvent(QKeyEvent *event) {
-  if (event->key() == Qt::Key_Escape)
-    emit dismissRequested();
-  else if ((event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) &&
-           !scene_.hub.focusedId.isEmpty())
-    emit itemActivated(scene_.hub.focusedId);
-  else
-    QWidget::keyPressEvent(event);
+void FanGlassView::contextMenuEvent(QContextMenuEvent *event) {
+  const QString id = hitTestView(event->pos());
+  if (!id.isEmpty())
+    emit itemContextMenuRequested(id, event->globalPos());
 }
+
 
 void FanGlassView::leaveEvent(QEvent *) { setHoverTarget({}); }
 

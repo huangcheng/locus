@@ -60,24 +60,15 @@ jobs:
 
       - name: Test
         run: ctest --test-dir build -C Release --output-on-failure
-
-      - name: Package installer and feed
+      - name: Package installer
         shell: pwsh
         run: |
           cmake --install build --prefix build\stage --config Release
           iscc /DStageDir=build\stage /DOutputDirPath=build\dist installer.iss
           if ($LASTEXITCODE -ne 0) { throw "iscc failed" }
-          $v = $env:LOCUS_VERSION
-          $exe = "build\dist\Locus-$v-windows-x64-setup.exe"
-          $hash = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLower()
-          $size = (Get-Item $exe).Length
-          $date = (Get-Date).ToUniversalTime().ToString('r')
-          $feed = Get-Content installer\appcast.xml.in -Raw
-          $feed = $feed.Replace('@VERSION@', $v).Replace('@SHA256@', $hash).
-                        Replace('@SIZE@', "$size").Replace('@DATE@', $date)
-          Set-Content -Path build\dist\appcast.xml -Value $feed -Encoding utf8
-          Get-Content build\dist\appcast.xml
 
+      # The release must exist before the feed is built: the feed embeds the
+      # auto-generated release notes as its <description>.
       - name: Publish release
         shell: pwsh
         env:
@@ -85,5 +76,24 @@ jobs:
         run: |
           $v = $env:LOCUS_VERSION
           gh release create "v$v" --generate-notes `
-            "build\dist\Locus-$v-windows-x64-setup.exe" `
-            build\dist\appcast.xml
+            "build\dist\Locus-$v-windows-x64-setup.exe"
+
+      - name: Generate and upload update feed
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $v = $env:LOCUS_VERSION
+          $exe = "build\dist\Locus-$v-windows-x64-setup.exe"
+          $hash = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLower()
+          $size = (Get-Item $exe).Length
+          $date = (Get-Date).ToUniversalTime().ToString('r')
+          $notes = gh release view "v$v" --json body -q .body
+          $notes = [System.Security.SecurityElement]::Escape($notes)
+          $feed = Get-Content installer\appcast.xml.in -Raw
+          $feed = $feed.Replace('@VERSION@', $v).Replace('@SHA256@', $hash).
+                        Replace('@SIZE@', "$size").Replace('@DATE@', $date).
+                        Replace('@NOTES@', $notes)
+          Set-Content -Path build\dist\appcast.xml -Value $feed -Encoding utf8
+          Get-Content build\dist\appcast.xml
+          gh release upload "v$v" build\dist\appcast.xml

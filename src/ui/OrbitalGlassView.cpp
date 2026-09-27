@@ -4,8 +4,8 @@
 #include "platforms/macos/MacActivation.h"
 #include "ui/HoneycombMark.h"
 
-#include <QKeyEvent>
 #include <QMouseEvent>
+#include <QContextMenuEvent>
 #include <QPainter>
 #include <QPainterPath>
 #include <QtMath>
@@ -504,15 +504,12 @@ void OrbitalGlassView::mousePressEvent(QMouseEvent *event) {
     emit dismissRequested();
 }
 
-void OrbitalGlassView::keyPressEvent(QKeyEvent *event) {
-  if (event->key() == Qt::Key_Escape)
-    emit dismissRequested();
-  else if ((event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) &&
-           !lastHover_.isEmpty())
-    emit itemActivated(lastHover_);
-  else
-    QWidget::keyPressEvent(event);
+void OrbitalGlassView::contextMenuEvent(QContextMenuEvent *event) {
+  const QString id = hitTest(scene_, event->pos());
+  if (!id.isEmpty())
+    emit itemContextMenuRequested(id, event->globalPos());
 }
+
 
 void OrbitalGlassView::leaveEvent(QEvent *) {
   setHoverTarget({});

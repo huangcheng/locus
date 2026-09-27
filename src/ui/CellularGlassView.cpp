@@ -4,8 +4,8 @@
 #include "core/HitTest.h"
 #include "ui/DockAnim.h"
 
-#include <QKeyEvent>
 #include <QMouseEvent>
+#include <QContextMenuEvent>
 #include <QPainter>
 #include <QPainterPath>
 
@@ -363,19 +363,16 @@ void CellularGlassView::mousePressEvent(QMouseEvent *event) {
   }
 }
 
-void CellularGlassView::keyPressEvent(QKeyEvent *event) {
-  if (event->key() == Qt::Key_Escape)
-    emit dismissRequested();
-  else if ((event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter) &&
-           !lastHover_.isEmpty())
-    emit itemActivated(lastHover_);
-  else
-    QWidget::keyPressEvent(event);
+void CellularGlassView::contextMenuEvent(QContextMenuEvent *event) {
+  const QString id = hitTest(scene_, event->pos() - origin());
+  if (!id.isEmpty())
+    emit itemContextMenuRequested(id, event->globalPos());
 }
 
+
 void CellularGlassView::leaveEvent(QEvent *) {
-  // Sticky selection: keep lastHover_ so ⏎ still activates the focused cell
-  // and the amber cell / label stay put. Only the magnification relaxes.
+  // Sticky selection: keep lastHover_ so the focused cell / label stay put.
+  // Only the magnification relaxes.
   cursorInside_ = false;
   if (!animTimer_.isActive())
     animTimer_.start(16, this);

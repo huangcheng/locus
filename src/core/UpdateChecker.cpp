@@ -161,6 +161,8 @@ QVector<UpdateInfo> UpdateChecker::parseAppcast(const QByteArray &xml,
         continue;
       if (reader.name() == QLatin1String("title")) {
         title = reader.readElementText().trimmed();
+      } else if (reader.name() == QLatin1String("description")) {
+        info.notes = reader.readElementText().trimmed();
       } else if (reader.name() == QLatin1String("pubDate")) {
         info.pubDate = QDateTime::fromString(reader.readElementText().trimmed(),
                                              Qt::RFC2822Date);
